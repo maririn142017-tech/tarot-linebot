@@ -132,7 +132,7 @@ async function handleEvent(event) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .upsert({ line_user_id: userId, last_active: new Date() }, { onConflict: 'line_user_id' });
+      .upsert({ line_user_id: userId, last_active: new Date().toISOString()}, { onConflict: 'line_user_id' });
     
     if (error) console.error('Supabase error:', error);
   } catch (err) {
@@ -159,7 +159,7 @@ async function handleEvent(event) {
         line_user_id: userId,
         cards: drawnCards,
         reading: reading,
-        created_at: new Date()
+        created_at: new Date().toISOString()
       });
     } catch (err) {
       console.error('Error saving reading:', err);
