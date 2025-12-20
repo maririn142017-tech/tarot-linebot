@@ -2,6 +2,7 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe');
+const tarotReadings = require('./tarot-readings');
 
 const app = express();
 
@@ -64,46 +65,48 @@ function getCloudinaryImageUrl(cardName) {
   return `https://res.cloudinary.com/${cloudName}/image/upload/${encodedCardName}.webp`;
 }
 
-// ランダムにカードを選ぶ関数
+// ランダムにカードを選ぶ関数（正位置・逆位置も決定）
 function drawRandomCards(count) {
   const shuffled = [...allCards].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
+  const selectedCards = shuffled.slice(0, count);
+  
+  // 各カードに正位置/逆位置をランダムに割り当て
+  return selectedCards.map(card => ({
+    name: card,
+    isReversed: Math.random() < 0.5 // 50%の確率で逆位置
+  }));
 }
 
-// タロット占いの結果を生成する関数
+// タロット占いの結果を生成する関数（900〜1000文字）
 function generateTarotReading(cards) {
-  const readings = {
-    '愚者': '新しい始まり、冒険、自由を象徴しています。',
-    '魔術師': '創造力、意志の力、スキルを示しています。',
-    '女教皇': '直感、神秘、内なる知恵を表しています。',
-    '女帝': '豊かさ、母性、創造性を意味します。',
-    '皇帝': '権威、安定、リーダーシップを示します。',
-    '教皇': '伝統、精神的な導き、教えを表します。',
-    '恋人': '愛、調和、選択を象徴しています。',
-    '戦車': '意志の力、勝利、前進を意味します。',
-    '力': '内なる強さ、勇気、忍耐を示します。',
-    '隠者': '内省、孤独、精神的な探求を表します。',
-    '運命の輪': '運命、変化、サイクルを象徴します。',
-    '正義': '公正、真実、バランスを意味します。',
-    '吊るされた男': '犠牲、新しい視点、停滞を示します。',
-    '死神': '変容、終わりと始まり、再生を表します。',
-    '節制': 'バランス、調和、節度を象徴します。',
-    '悪魔': '束縛、誘惑、物質主義を意味します。',
-    '塔': '突然の変化、破壊、啓示を示します。',
-    '星': '希望、インスピレーション、癒しを表します。',
-    '月': '幻想、不安、潜在意識を象徴します。',
-    '太陽': '喜び、成功、活力を意味します。',
-    '審判': '復活、評価、新しいスタートを示します。',
-    '世界': '完成、達成、統合を表します。'
-  };
-
-  // デフォルトのメッセージ
-  const defaultReading = 'このカードは、あなたの人生に新しい展開をもたらすでしょう。';
-
-  return cards.map(card => {
-    const reading = readings[card] || defaultReading;
-    return `【${card}】\n${reading}`;
-  }).join('\n\n');
+  const positions = ['過去', '現在', '未来'];
+  
+  let result = '';
+  
+  // 各カードの解釈
+  cards.forEach((card, index) => {
+    const position = positions[index] || `カード${index + 1}`;
+    const cardName = card.name;
+    const isReversed = card.isReversed;
+    const positionText = isReversed ? '（逆位置）' : '';
+    
+    // 解釈を取得
+    const reading = tarotReadings[cardName];
+    const interpretation = isReversed ? reading.reversed : reading.upright;
+    
+    result += `【${position}：${cardName}${positionText}】\n${interpretation}\n\n`;
+  });
+  
+  // ルカからのメッセージ
+  result += `【ルカからのメッセージ】\n`;
+  result += `あなたのカードを見させてもらったよ✨\n`;
+  result += `過去から現在、そして未来へと続く流れの中で、あなたは今、大切な時期にいるんだね。\n`;
+  result += `カードが示すメッセージを受け取って、自分の心に正直に進んでいってほしいな💕\n`;
+  result += `あなたには、素敵な未来を切り開く力があるから。\n`;
+  result += `信じて、一歩ずつ進んでいこう🌈\n`;
+  result += `いつでも応援してるからね！💪✨`;
+  
+  return result;
 }
 
 // Webhookエンドポイント
@@ -143,22 +146,22 @@ async function handleEvent(event) {
   let replyMessage;
 
   if (userMessage === 'タロット占い' || userMessage === '占い') {
-    // 3枚のカードを引く
+    // 3枚のカードを引く（正位置・逆位置含む）
     const drawnCards = drawRandomCards(3);
     const reading = generateTarotReading(drawnCards);
 
-    // カード画像を送信
+    // カード画像を送信（カード名のみ）
     const imageMessages = drawnCards.map(card => ({
       type: 'image',
-      originalContentUrl: getCloudinaryImageUrl(card),
-      previewImageUrl: getCloudinaryImageUrl(card)
+      originalContentUrl: getCloudinaryImageUrl(card.name),
+      previewImageUrl: getCloudinaryImageUrl(card.name)
     }));
 
     // 占い結果をSupabaseに保存
     try {
       await supabase.from('readings').insert({
         line_user_id: userId,
-        cards: drawnCards,
+        cards: drawnCards.map(c => `${c.name}${c.isReversed ? '（逆位置）' : ''}`),
         reading: reading,
         created_at: new Date()
       });
