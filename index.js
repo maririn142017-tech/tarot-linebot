@@ -2,7 +2,9 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe');
+const OpenAI = require('openai');
 const tarotReadings = require('./tarot-readings');
+const { generateAIReading } = require('./ai-reading-generator');
 
 const app = express();
 
@@ -19,6 +21,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
 
 const client = new line.Client(config);
+
+// OpenAI APIクライアント
+const openai = new OpenAI();
+
+// ユーザーの会話状態を管理
+const userStates = new Map();
 
 // タロットカードのデータ（78枚）
 const tarotCards = {
@@ -181,12 +189,69 @@ async function handleEvent(event) {
     return;
   }
 
+  // 詳細占い（OpenAI API使用）
   if (userMessage === '詳細占い') {
+    // ユーザーの状態を「質問待ち」に設定
+    userStates.set(userId, { state: 'waiting_for_question' });
+    
     replyMessage = {
       type: 'text',
-      text: '詳細な占いは有料サービスです。\n料金：500円\n\nお支払いをご希望の方は「支払い」とメッセージしてください。'
+      text: 'こんにちは、私はルカだよ✨\nあなたの心の声を、タロットを通してお聞きするね。\n\nまずは、どんなことを占いたいか教えてくれる？\n例えば「恋愛について」「仕事について」「人間関係について」など、自由に教えてね💕'
     };
-  } else if (userMessage === '支払い') {
+  } 
+  // ユーザーが質問を入力した場合
+  else if (userStates.has(userId) && userStates.get(userId).state === 'waiting_for_question') {
+    const userQuestion = userMessage;
+    
+    // カードを引く
+    const drawnCards = drawRandomCards(3);
+    
+    // カード画像を送信
+    const imageMessages = drawnCards.map(card => ({
+      type: 'image',
+      originalContentUrl: getCloudinaryImageUrl(card.name),
+      previewImageUrl: getCloudinaryImageUrl(card.name)
+    }));
+    
+    await client.replyMessage(event.replyToken, [
+      ...imageMessages,
+      {
+        type: 'text',
+        text: 'カードを引いてるから、少し待っててね✨\n詳しい解釈を作ってるよ💫'
+      }
+    ]);
+    
+    // OpenAI APIで詳細な解釈を生成
+    try {
+      const aiReading = await generateAIReading(userQuestion, drawnCards);
+      
+      // 解釈を送信
+      await client.pushMessage(userId, {
+        type: 'text',
+        text: `🔮 タロット占いの結果 🔮\n\n${aiReading}`
+      });
+      
+      // 占い結果をSupabaseに保存
+      await supabase.from('readings').insert({
+        line_user_id: userId,
+        cards: drawnCards.map(c => `${c.name}${c.isReversed ? '（逆位置）' : ''}`),
+        reading: aiReading,
+        question: userQuestion,
+        created_at: new Date()
+      });
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      await client.pushMessage(userId, {
+        type: 'text',
+        text: 'ごめんね、ちょっとエラーが起きちゃった😢\nもう一度「詳細占い」と送信してみてくれる？'
+      });
+    }
+    
+    // ユーザーの状態をクリア
+    userStates.delete(userId);
+    return;
+  } 
+  else if (userMessage === '支払い') {
     // Stripe決済リンクを生成（実装例）
     replyMessage = {
       type: 'text',
