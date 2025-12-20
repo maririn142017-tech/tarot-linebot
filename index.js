@@ -60,7 +60,8 @@ const allCards = [
 // Cloudinaryの画像URLを生成する関数
 function getCloudinaryImageUrl(cardName) {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${cardName}.png`;
+  const encodedCardName = encodeURIComponent(cardName);
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${encodedCardName}.webp`;
 }
 
 // ランダムにカードを選ぶ関数
@@ -132,7 +133,7 @@ async function handleEvent(event) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .upsert({ line_user_id: userId, last_active: new Date().toISOString()}, { onConflict: 'line_user_id' });
+      .upsert({ line_user_id: userId, last_active: new Date() }, { onConflict: 'line_user_id' });
     
     if (error) console.error('Supabase error:', error);
   } catch (err) {
@@ -159,7 +160,7 @@ async function handleEvent(event) {
         line_user_id: userId,
         cards: drawnCards,
         reading: reading,
-        created_at: new Date().toISOString()
+        created_at: new Date()
       });
     } catch (err) {
       console.error('Error saving reading:', err);
