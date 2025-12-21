@@ -182,15 +182,15 @@ async function handleEvent(event) {
       ...imageMessages,
       {
         type: 'text',
-        text: `🔮 タロット占いの結果 🔮\n\n${reading}\n\n※より詳しい占いをご希望の方は「詳細占い」とメッセージしてください。`
+        text: `🔮 タロット占いの結果 🔮\n\n${reading}\n\n※より詳しい占いをご希望の方は「ルカ占い」とメッセージしてください。`
       }
     ]);
 
     return;
   }
 
-  // 詳細占い（OpenAI API使用）
-  if (userMessage === '詳細占い') {
+  // ルカ占い（OpenAI API使用）
+  if (userMessage === 'ルカ占い') {
     // ユーザーの状態を「質問待ち」に設定
     userStates.set(userId, { state: 'waiting_for_question' });
     
@@ -243,7 +243,7 @@ async function handleEvent(event) {
       console.error('OpenAI API error:', error);
       await client.pushMessage(userId, {
         type: 'text',
-        text: 'ごめんね、ちょっとエラーが起きちゃった😢\nもう一度「詳細占い」と送信してみてくれる？'
+        text: 'ごめんね、ちょっとエラーが起きちゃった😢\nもう一度「ルカ占い」と送信してみてくれる？'
       });
     }
     
@@ -260,7 +260,7 @@ async function handleEvent(event) {
   } else if (userMessage === 'ヘルプ' || userMessage === 'help') {
     replyMessage = {
       type: 'text',
-      text: '🔮 タロット占いボットへようこそ！\n\n【使い方】\n・「タロット占い」または「占い」と送信すると、3枚のカードで占います\n・「詳細占い」で有料の詳細占いが利用できます\n・「ヘルプ」でこのメッセージを表示します'
+      text: '🔮 タロット占いボットへようこそ！\n\n【使い方】\n・「タロット占い」または「占い」と送信すると、3枚のカードで占います\n・「ルカ占い」でAIによる詳細占いが利用できます\n・「ヘルプ」でこのメッセージを表示します'
     };
   } else {
     replyMessage = {
