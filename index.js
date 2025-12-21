@@ -257,10 +257,81 @@ async function handleEvent(event) {
       type: 'text',
       text: '決済機能は現在準備中です。しばらくお待ちください。'
     };
-  } else if (userMessage === 'ヘルプ' || userMessage === 'help') {
+  } 
+  // カード解釈集のメインメニュー
+  else if (userMessage === 'カード解釈集' || userMessage === 'カードの意味') {
     replyMessage = {
       type: 'text',
-      text: '🔮 タロット占いボットへようこそ！\n\n【使い方】\n・「タロット占い」または「占い」と送信すると、3枚のカードで占います\n・「ルカ占い」でAIによる詳細占いが利用できます\n・「ヘルプ」でこのメッセージを表示します'
+      text: '📚 カード解釈集 📚\n\n以下のカテゴリーから選んでください：\n\n1️⃣ 大アルカナ（22枚）\n2️⃣ カップ（14枚）\n3️⃣ ソード（14枚）\n4️⃣ ワンド（14枚）\n5️⃣ ペンタクル（14枚）\n\n番号または名前を送信してください。'
+    };
+  }
+  // 大アルカナ一覧
+  else if (userMessage === '1' || userMessage === '大アルカナ') {
+    const majorArcana = tarotCards.major;
+    const cardList = majorArcana.map((card, index) => `${index + 1}. ${card}`).join('\n');
+    replyMessage = {
+      type: 'text',
+      text: `🎴 大アルカナ（22枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
+    };
+  }
+  // カップ一覧
+  else if (userMessage === '2' || userMessage === 'カップ') {
+    const cups = tarotCards.cups;
+    const cardList = cups.map((card, index) => `${index + 1}. ${card}`).join('\n');
+    replyMessage = {
+      type: 'text',
+      text: `🎯 カップ（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
+    };
+  }
+  // ソード一覧
+  else if (userMessage === '3' || userMessage === 'ソード') {
+    const swords = tarotCards.swords;
+    const cardList = swords.map((card, index) => `${index + 1}. ${card}`).join('\n');
+    replyMessage = {
+      type: 'text',
+      text: `⚔️ ソード（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
+    };
+  }
+  // ワンド一覧
+  else if (userMessage === '4' || userMessage === 'ワンド') {
+    const wands = tarotCards.wands;
+    const cardList = wands.map((card, index) => `${index + 1}. ${card}`).join('\n');
+    replyMessage = {
+      type: 'text',
+      text: `🪄 ワンド（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
+    };
+  }
+  // ペンタクル一覧
+  else if (userMessage === '5' || userMessage === 'ペンタクル') {
+    const pentacles = tarotCards.pentacles;
+    const cardList = pentacles.map((card, index) => `${index + 1}. ${card}`).join('\n');
+    replyMessage = {
+      type: 'text',
+      text: `💰 ペンタクル（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
+    };
+  }
+  // 個別カードの詳細表示
+  else if (tarotReadings[userMessage]) {
+    const cardData = tarotReadings[userMessage];
+    const imageUrl = getCloudinaryImageUrl(userMessage);
+    
+    await client.replyMessage(event.replyToken, [
+      {
+        type: 'image',
+        originalContentUrl: imageUrl,
+        previewImageUrl: imageUrl
+      },
+      {
+        type: 'text',
+        text: `🎴 ${userMessage} 🎴\n\n【正位置】\n${cardData.upright}\n\n【逆位置】\n${cardData.reversed}`
+      }
+    ]);
+    return;
+  }
+  else if (userMessage === 'ヘルプ' || userMessage === 'help') {
+    replyMessage = {
+      type: 'text',
+      text: '🔮 タロット占いボットへようこそ！\n\n【使い方】\n・「タロット占い」または「占い」で無料占い\n・「ルカ占い」でAI詳細占い\n・「カード解釈集」で78枚のカードの意味を確認\n・「ヘルプ」でこのメッセージを表示'
     };
   } else {
     replyMessage = {
