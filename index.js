@@ -252,11 +252,25 @@ async function handleEvent(event) {
     userStates.delete(userId);
     return;
   } 
-  else if (userMessage === '支払い') {
-    // Stripe決済リンクを生成（実装例）
+  // 恋愛占い
+  else if (userMessage === '恋愛占い') {
     replyMessage = {
       type: 'text',
-      text: '決済機能は現在準備中です。しばらくお待ちください。'
+      text: '💕 恋愛占い 💕\n\n恋愛に特化した占いをご希望ですか？\n\n「ルカ占い」と送信して、質問欄に「恋愛について」と入力してくださいね💖\n\nまたは「タロット占い」で無料占いもできます✨'
+    };
+  }
+  // マイページ
+  else if (userMessage === 'マイページ') {
+    replyMessage = {
+      type: 'text',
+      text: '📖 マイページ 📖\n\n現在利用可能な機能：\n\n・「タロット占い」 - 無料占い\n・「ルカ占い」 - AI詳細占い\n・「カード解釈集」 - 78枚のカードの意味\n・「ヘルプ」 - 使い方ガイド\n\n履歴機能は現在開発中です🚀'
+    };
+  }
+  // 決済
+  else if (userMessage === '決済' || userMessage === '支払い') {
+    replyMessage = {
+      type: 'text',
+      text: '💳 決済 💳\n\n有料プランは現在準備中です。\n\n現在は「タロット占い」（無料）と「ルカ占い」（AI詳細占い）をお楽しみください✨'
     };
   } 
   // カード解釈集のメインメニュー
