@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>恋愛占い - ルカのタロット占い</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+      padding: 20px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .theme-card {
+      background: white;
+      border-radius: 12px;
+      padding: 15px 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .theme-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .theme-card:active {
+      transform: translateY(-1px);
+    }
+
+    .theme-icon {
+      font-size: 32px;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .theme-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .loading {
+      text-align: center;
+      color: white;
+      padding: 40px;
+      font-size: 18px;
+    }
+
+    .footer {
+      text-align: center;
+      color: white;
+      margin-top: 30px;
+      padding: 20px;
+      opacity: 0.8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>💕 恋愛占い 💕</h1>
+      <p>どのテーマで占いたいですか？</p>
+    </div>
+
+    <div id="loading" class="loading">
+      読み込み中...
+    </div>
+
+    <div id="themes" class="theme-grid" style="display: none;">
+      <div class="theme-card" onclick="selectTheme('相手の気持ち')">
+        <div class="theme-icon">💭</div>
+        <div class="theme-title">相手の気持ち</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('2人の関係性')">
+        <div class="theme-icon">💑</div>
+        <div class="theme-title">2人の関係性</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('恋の近未来')">
+        <div class="theme-icon">🔮</div>
+        <div class="theme-title">恋の近未来</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('進展の可能性')">
+        <div class="theme-icon">📈</div>
+        <div class="theme-title">進展の可能性</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('恋の決断')">
+        <div class="theme-icon">⚖️</div>
+        <div class="theme-title">恋の決断</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('相手との相性')">
+        <div class="theme-icon">💕</div>
+        <div class="theme-title">相手との相性</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('恋の障害')">
+        <div class="theme-icon">🚧</div>
+        <div class="theme-title">恋の障害</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('復縁の可能性')">
+        <div class="theme-icon">🔄</div>
+        <div class="theme-title">復縁の可能性</div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('新しい出会い')">
+        <div class="theme-icon">✨</div>
+        <div class="theme-title">新しい出会い</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      タップするとLINEに戻って占いが始まります✨
+    </div>
+  </div>
+
+  <script>
+    // LIFF初期化
+    window.onload = function() {
+      liff.init({
+        liffId: 'YOUR_LIFF_ID' // 後で設定
+      }).then(() => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('themes').style.display = 'grid';
+      }).catch((err) => {
+        console.error('LIFF初期化エラー:', err);
+        document.getElementById('loading').textContent = 'エラーが発生しました';
+      });
+    };
+
+    // テーマ選択
+    function selectTheme(theme) {
+      if (!liff.isInClient()) {
+        alert('LINEアプリで開いてください');
+        return;
+      }
+
+      // LINEにメッセージを送信
+      liff.sendMessages([{
+        type: 'text',
+        text: `恋愛占い：${theme}`
+      }]).then(() => {
+        liff.closeWindow();
+      }).catch((err) => {
+        console.error('メッセージ送信エラー:', err);
+        alert('エラーが発生しました');
+      });
+    }
+  </script>
+</body>
+</html>

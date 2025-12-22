@@ -1,11 +1,13 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
-const { createClient } = require('@supabase/supabase-js');
-const stripe = require('stripe');
 const OpenAI = require('openai');
 const tarotReadings = require('./tarot-readings');
 const tarotGuide = require('./tarot-guide');
 const { generateAIReading } = require('./ai-reading-generator');
+const db = require('./database');
+const usageLimiter = require('./usage-limiter');
+const lukaConversation = require('./luka-conversation');
+const support = require('./support');
 
 const app = express();
 
@@ -15,19 +17,10 @@ const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
-
 const client = new line.Client(config);
 
 // OpenAI APIクライアント
 const openai = new OpenAI();
-
-// ユーザーの会話状態を管理
-const userStates = new Map();
 
 // タロットカードのデータ（78枚）
 const tarotCards = {
@@ -58,7 +51,7 @@ const tarotCards = {
   ]
 };
 
-// 全てのカードを1つの配列にまとめる
+// 全カードを1つの配列に
 const allCards = [
   ...tarotCards.major,
   ...tarotCards.wands,
@@ -67,67 +60,35 @@ const allCards = [
   ...tarotCards.pentacles
 ];
 
-// Cloudinaryの画像URLを生成する関数
-function getCloudinaryImageUrl(cardName) {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const encodedCardName = encodeURIComponent(cardName);
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${encodedCardName}.webp`;
-}
-
-// ランダムにカードを選ぶ関数（正位置・逆位置も決定）
-function drawRandomCards(count) {
-  const shuffled = [...allCards].sort(() => 0.5 - Math.random());
-  const selectedCards = shuffled.slice(0, count);
-  
-  // 各カードに正位置/逆位置をランダムに割り当て
-  return selectedCards.map(card => ({
+// カードをランダムに引く
+function drawCards(count = 3) {
+  const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count).map(card => ({
     name: card,
-    isReversed: Math.random() < 0.5 // 50%の確率で逆位置
+    reversed: Math.random() < 0.5 // 50%の確率で逆位置
   }));
 }
 
-// タロット占いの結果を生成する関数（900〜1000文字）
-function generateTarotReading(cards) {
-  const positions = ['過去', '現在', '未来'];
+// カード解釈を取得
+function getCardInterpretation(cardName, isReversed) {
+  const position = isReversed ? 'reversed' : 'upright';
+  const reading = tarotReadings[cardName];
   
-  let result = '';
+  if (reading && reading[position]) {
+    return reading[position];
+  }
   
-  // 各カードの解釈
-  cards.forEach((card, index) => {
-    const position = positions[index] || `カード${index + 1}`;
-    const cardName = card.name;
-    const isReversed = card.isReversed;
-    const positionText = isReversed ? '（逆位置）' : '';
-    
-    // 解釈を取得
-    const reading = tarotReadings[cardName];
-    const interpretation = isReversed ? reading.reversed : reading.upright;
-    
-    result += `【${position}：${cardName}${positionText}】\n${interpretation}\n\n`;
-  });
-  
-  // ルカからのメッセージ
-  result += `【ルカからのメッセージ】\n`;
-  result += `あなたのカードを見させてもらったよ✨\n`;
-  result += `過去から現在、そして未来へと続く流れの中で、あなたは今、大切な時期にいるんだね。\n`;
-  result += `カードが示すメッセージを受け取って、自分の心に正直に進んでいってほしいな💕\n`;
-  result += `あなたには、素敵な未来を切り開く力があるから。\n`;
-  result += `信じて、一歩ずつ進んでいこう🌈\n`;
-  result += `いつでも応援してるからね！💪✨`;
-  
-  return result;
+  return '解釈が見つかりませんでした。';
 }
 
 // Webhookエンドポイント
 app.post('/webhook', line.middleware(config), async (req, res) => {
   try {
     const events = req.body.events;
-    
     await Promise.all(events.map(handleEvent));
-    
     res.status(200).end();
   } catch (err) {
-    console.error('Error:', err);
+    console.error('Webhook error:', err);
     res.status(500).end();
   }
 });
@@ -140,231 +101,407 @@ async function handleEvent(event) {
 
   const userId = event.source.userId;
   const userMessage = event.message.text.trim();
-
-  // ユーザー情報をSupabaseに保存
+  
+  // ユーザー情報を取得または作成
+  let profile;
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .upsert({ line_user_id: userId, last_active: new Date() }, { onConflict: 'line_user_id' });
+    profile = await client.getProfile(userId);
+  } catch (error) {
+    console.error('プロフィール取得エラー:', error);
+    profile = { displayName: 'ゲスト' };
+  }
+  
+  const user = db.getOrCreateUser(userId, profile.displayName);
+  
+  // サポート会話中の処理
+  if (support.isInSupport(userId)) {
+    const supportResponse = await support.handleSupportMessage(userId, userMessage, profile.displayName);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: supportResponse
+    });
+  }
+  
+  // 初回ユーザーの挨拶
+  if (usageLimiter.isFirstTimeUser(userId) && !lukaConversation.isInConversation(userId)) {
+    const greeting = `初めまして${profile.displayName}さん💕
+
+ルカに会いに来てくれてありがとう✨
+
+ルカは78枚のタロットカードであなたの未来を占うよ🔮
+
+初回は無料で3カード占いができるから、下のメニューから「一般占い」を選んでね🎶`;
     
-    if (error) console.error('Supabase error:', error);
-  } catch (err) {
-    console.error('Error saving user:', err);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: greeting
+    });
   }
-
-  let replyMessage;
-
-  if (userMessage === 'タロット占い' || userMessage === '占い') {
-    // 3枚のカードを引く（正位置・逆位置含む）
-    const drawnCards = drawRandomCards(3);
-    const reading = generateTarotReading(drawnCards);
-
-    // カード画像を送信（カード名のみ）
-    const imageMessages = drawnCards.map(card => ({
-      type: 'image',
-      originalContentUrl: getCloudinaryImageUrl(card.name),
-      previewImageUrl: getCloudinaryImageUrl(card.name)
-    }));
-
-    // 占い結果をSupabaseに保存
-    try {
-      await supabase.from('readings').insert({
-        line_user_id: userId,
-        cards: drawnCards.map(c => `${c.name}${c.isReversed ? '（逆位置）' : ''}`),
-        reading: reading,
-        created_at: new Date()
-      });
-    } catch (err) {
-      console.error('Error saving reading:', err);
-    }
-
-    // 画像とテキストを送信
-    await client.replyMessage(event.replyToken, [
-      ...imageMessages,
-      {
-        type: 'text',
-        text: `🔮 タロット占いの結果 🔮\n\n${reading}\n\n※より詳しい占いをご希望の方は「ルカ占い」とメッセージしてください。`
-      }
-    ]);
-
-    return;
+  
+  // LIFFから送信されたメッセージの処理
+  if (userMessage.startsWith('一般占い：')) {
+    const theme = userMessage.replace('一般占い：', '');
+    return handleGeneralReadingWithTheme(event, userId, profile.displayName, theme);
   }
-
-  // ルカ占い（OpenAI API使用）
+  
+  if (userMessage.startsWith('恋愛占い：')) {
+    const theme = userMessage.replace('恋愛占い：', '');
+    return handleLoveReadingWithTheme(event, userId, profile.displayName, theme);
+  }
+  
+  // メニュー選択の処理
+  if (userMessage === '一般占い' || userMessage === '恋愛占い') {
+    return handleReadingMenu(event, userId, profile.displayName, userMessage);
+  }
+  
   if (userMessage === 'ルカ占い') {
-    // ユーザーの状態を「質問待ち」に設定
-    userStates.set(userId, { state: 'waiting_for_question' });
+    return handleLukaReading(event, userId, profile.displayName);
+  }
+  
+  if (userMessage === 'カード解釈集') {
+    return handleCardGuide(event, userId);
+  }
+  
+  if (userMessage === 'マイページ') {
+    return handleMyPage(event, userId, profile.displayName);
+  }
+  
+  if (userMessage === '決済') {
+    return handlePayment(event, userId, profile.displayName);
+  }
+  
+  if (userMessage === 'サポート') {
+    const supportGreeting = support.startSupport(userId, profile.displayName);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: supportGreeting
+    });
+  }
+  
+  // ルカとの会話中の処理
+  if (lukaConversation.isInConversation(userId)) {
+    const result = await lukaConversation.handleConversationMessage(
+      userId, 
+      userMessage, 
+      profile.displayName
+    );
     
-    replyMessage = {
+    return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: 'こんにちは、私はルカだよ✨\nあなたの心の声を、タロットを通してお聞きするね。\n\nまずは、どんなことを占いたいか教えてくれる？\n例えば「恋愛について」「仕事について」「人間関係について」など、自由に教えてね💕'
-    };
-  } 
-  // ユーザーが質問を入力した場合
-  else if (userStates.has(userId) && userStates.get(userId).state === 'waiting_for_question') {
-    const userQuestion = userMessage;
-    
-    // カードを引く
-    const drawnCards = drawRandomCards(3);
-    
-    // カード画像を送信
-    const imageMessages = drawnCards.map(card => ({
-      type: 'image',
-      originalContentUrl: getCloudinaryImageUrl(card.name),
-      previewImageUrl: getCloudinaryImageUrl(card.name)
-    }));
-    
-    await client.replyMessage(event.replyToken, [
-      ...imageMessages,
-      {
-        type: 'text',
-        text: 'カードを引いてるから、少し待っててね✨\n詳しい解釈を作ってるよ💫'
-      }
-    ]);
-    
-    // OpenAI APIで詳細な解釈を生成
-    try {
-      const aiReading = await generateAIReading(userQuestion, drawnCards);
-      
-      // 解釈を送信
-      await client.pushMessage(userId, {
-        type: 'text',
-        text: `🔮 タロット占いの結果 🔮\n\n${aiReading}`
-      });
-      
-      // 占い結果をSupabaseに保存
-      await supabase.from('readings').insert({
-        line_user_id: userId,
-        cards: drawnCards.map(c => `${c.name}${c.isReversed ? '（逆位置）' : ''}`),
-        reading: aiReading,
-        question: userQuestion,
-        created_at: new Date()
-      });
-    } catch (error) {
-      console.error('OpenAI API error:', error);
-      await client.pushMessage(userId, {
-        type: 'text',
-        text: 'ごめんね、ちょっとエラーが起きちゃった😢\nもう一度「ルカ占い」と送信してみてくれる？'
-      });
-    }
-    
-    // ユーザーの状態をクリア
-    userStates.delete(userId);
-    return;
-  } 
-  // 恋愛占い
-  else if (userMessage === '恋愛占い') {
-    replyMessage = {
-      type: 'text',
-      text: '💕 恋愛占い 💕\n\n恋愛に特化した占いをご希望ですか？\n\n「ルカ占い」と送信して、質問欄に「恋愛について」と入力してくださいね💖\n\nまたは「タロット占い」で無料占いもできます✨'
-    };
+      text: result.response
+    });
   }
-  // マイページ
-  else if (userMessage === 'マイページ') {
-    replyMessage = {
-      type: 'text',
-      text: '📖 マイページ 📖\n\n現在利用可能な機能：\n\n・「タロット占い」 - 無料占い\n・「ルカ占い」 - AI詳細占い\n・「カード解釈集」 - 78枚のカードの意味\n・「ヘルプ」 - 使い方ガイド\n\n履歴機能は現在開発中です🚀'
-    };
-  }
-  // 決済
-  else if (userMessage === '決済' || userMessage === '支払い') {
-    replyMessage = {
-      type: 'text',
-      text: '💳 決済 💳\n\n有料プランは現在準備中です。\n\n現在は「タロット占い」（無料）と「ルカ占い」（AI詳細占い）をお楽しみください✨'
-    };
-  } 
-  // カード解釈集のメインメニュー
-  else if (userMessage === 'カード解釈集' || userMessage === 'カードの意味') {
-    replyMessage = {
-      type: 'text',
-      text: '📚 カード解釈集 📚\n\n以下のカテゴリーから選んでください：\n\n1️⃣ 大アルカナ（22枚）\n2️⃣ カップ（14枚）\n3️⃣ ソード（14枚）\n4️⃣ ワンド（14枚）\n5️⃣ ペンタクル（14枚）\n\n番号または名前を送信してください。'
-    };
-  }
-  // 大アルカナ一覧
-  else if (userMessage === '1' || userMessage === '大アルカナ') {
-    const majorArcana = tarotCards.major;
-    const cardList = majorArcana.map((card, index) => `${index + 1}. ${card}`).join('\n');
-    replyMessage = {
-      type: 'text',
-      text: `🎴 大アルカナ（22枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
-    };
-  }
-  // カップ一覧
-  else if (userMessage === '2' || userMessage === 'カップ') {
-    const cups = tarotCards.cups;
-    const cardList = cups.map((card, index) => `${index + 1}. ${card}`).join('\n');
-    replyMessage = {
-      type: 'text',
-      text: `🎯 カップ（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
-    };
-  }
-  // ソード一覧
-  else if (userMessage === '3' || userMessage === 'ソード') {
-    const swords = tarotCards.swords;
-    const cardList = swords.map((card, index) => `${index + 1}. ${card}`).join('\n');
-    replyMessage = {
-      type: 'text',
-      text: `⚔️ ソード（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
-    };
-  }
-  // ワンド一覧
-  else if (userMessage === '4' || userMessage === 'ワンド') {
-    const wands = tarotCards.wands;
-    const cardList = wands.map((card, index) => `${index + 1}. ${card}`).join('\n');
-    replyMessage = {
-      type: 'text',
-      text: `🪄 ワンド（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
-    };
-  }
-  // ペンタクル一覧
-  else if (userMessage === '5' || userMessage === 'ペンタクル') {
-    const pentacles = tarotCards.pentacles;
-    const cardList = pentacles.map((card, index) => `${index + 1}. ${card}`).join('\n');
-    replyMessage = {
-      type: 'text',
-      text: `💰 ペンタクル（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
-    };
-  }
-  // 個別カードの詳細表示（カード解釈集用）
-  else if (tarotGuide[userMessage]) {
-    const cardData = tarotGuide[userMessage];
-    const imageUrl = getCloudinaryImageUrl(userMessage);
-    
-    await client.replyMessage(event.replyToken, [
-      {
-        type: 'image',
-        originalContentUrl: imageUrl,
-        previewImageUrl: imageUrl
-      },
-      {
-        type: 'text',
-        text: `🎴 ${userMessage} 🎴\n\n【正位置】\n${cardData.upright}\n\n【逆位置】\n${cardData.reversed}`
-      }
-    ]);
-    return;
-  }
-  else if (userMessage === 'ヘルプ' || userMessage === 'help') {
-    replyMessage = {
-      type: 'text',
-      text: '🔮 タロット占いボットへようこそ！\n\n【使い方】\n・「タロット占い」または「占い」で無料占い\n・「ルカ占い」でAI詳細占い\n・「カード解釈集」で78枚のカードの意味を確認\n・「ヘルプ」でこのメッセージを表示'
-    };
-  } else {
-    replyMessage = {
-      type: 'text',
-      text: 'こんにちは！タロット占いボットです。\n「タロット占い」と送信してください。\n\n使い方を知りたい場合は「ヘルプ」と送信してください。'
-    };
-  }
-
-  return client.replyMessage(event.replyToken, replyMessage);
+  
+  // その他のメッセージ
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: `${profile.displayName}さん、こんにちは🌈\n\n下のメニューから選んでね✨`
+  });
 }
 
-// ヘルスチェックエンドポイント
+// 占いメニュー（LIFFページへ誘導）
+async function handleReadingMenu(event, userId, displayName, type) {
+  // 利用制限チェック
+  const limitCheck = usageLimiter.checkUsageLimit(userId);
+  
+  if (!limitCheck.canUse) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: limitCheck.message
+    });
+  }
+  
+  const typeName = type === '恋愛占い' ? '恋愛占い' : '一般占い';
+  const message = `${displayName}さん、こんにちは🌈
+
+${typeName}のテーマ選択ページを開きます✨
+
+※現在準備中のため、もうすぐ利用可能になります！
+
+今しばらくお待ちください😊💕`;
+  
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: message
+  });
+}
+
+// 一般占い（テーマあり）
+async function handleGeneralReadingWithTheme(event, userId, displayName, theme) {
+  // 利用制限チェック
+  const limitCheck = usageLimiter.checkUsageLimit(userId);
+  
+  if (!limitCheck.canUse) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: limitCheck.message
+    });
+  }
+  
+  // カードを引く
+  const cards = drawCards(3);
+  
+  // 占い結果のメッセージを作成
+  let resultMessage = `🔮 ${displayName}さんの占い結果 🔮\n\n`;
+  resultMessage += `【${theme}】\n\n`;
+  
+  const positions = ['過去', '現在', '未来'];
+  
+  cards.forEach((card, index) => {
+    const position = positions[index];
+    const positionText = card.reversed ? '逆位置' : '正位置';
+    const interpretation = getCardInterpretation(card.name, card.reversed);
+    
+    resultMessage += `【${position}】${card.name}（${positionText}）\n`;
+    resultMessage += `${interpretation}\n\n`;
+  });
+  
+  // 使用回数を記録
+  usageLimiter.afterReading(userId);
+  
+  // 占い履歴に追加
+  db.addReadingHistory(userId, {
+    type: 'general',
+    theme: theme,
+    cards: cards,
+    result: resultMessage
+  });
+  
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: resultMessage
+  });
+}
+
+// 恋愛占い（テーマあり）
+async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
+  // 利用制限チェック
+  const limitCheck = usageLimiter.checkUsageLimit(userId);
+  
+  if (!limitCheck.canUse) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: limitCheck.message
+    });
+  }
+  
+  // カードを引く
+  const cards = drawCards(3);
+  
+  // 占い結果のメッセージを作成
+  let resultMessage = `🔮 ${displayName}さんの占い結果 🔮\n\n`;
+  resultMessage += `【${theme}】\n\n`;
+  
+  const positions = ['現状', '課題', '未来'];
+  
+  cards.forEach((card, index) => {
+    const position = positions[index];
+    const positionText = card.reversed ? '逆位置' : '正位置';
+    const interpretation = getCardInterpretation(card.name, card.reversed);
+    
+    resultMessage += `【${position}】${card.name}（${positionText}）\n`;
+    resultMessage += `${interpretation}\n\n`;
+  });
+  
+  // 使用回数を記録
+  usageLimiter.afterReading(userId);
+  
+  // 占い履歴に追加
+  db.addReadingHistory(userId, {
+    type: 'love',
+    theme: theme,
+    cards: cards,
+    result: resultMessage
+  });
+  
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: resultMessage
+  });
+}
+
+// ルカ占い（AI会話あり）
+async function handleLukaReading(event, userId, displayName) {
+  // ルカが使えるかチェック
+  if (!usageLimiter.canUseLuka(userId)) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `ルカ占いは有料会員限定です💕
+
+【ルカ占いの特徴】
+✨ ルカとの会話ができる
+✨ AIによる詳しい鑑定
+✨ 1000文字の個別メッセージ
+
+料金プラン：
+💫 単品：380円/回
+👑 ライト：3,000円/月（1日1回）
+👑 スタンダード：5,000円/月（1日2回）
+👑 プレミアム：9,800円/3ヶ月（1日2回）
+
+※有料会員でも単品購入可能です
+
+下のメニューから「決済」をタップしてね🎶`
+    });
+  }
+  
+  // 利用制限チェック
+  const limitCheck = usageLimiter.checkUsageLimit(userId);
+  
+  if (!limitCheck.canUse) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: limitCheck.message
+    });
+  }
+  
+  // 会話を開始
+  const greeting = lukaConversation.startConversation(userId, displayName);
+  
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: greeting
+  });
+}
+
+// カード解釈集
+async function handleCardGuide(event, userId) {
+  const guideMessage = `🔮 タロットカード解釈集 🔮
+
+78枚のカードを見やすく表示します✨
+
+※現在準備中のため、もうすぐ利用可能になります！
+
+今しばらくお待ちください😊💕`;
+  
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: guideMessage
+  });
+}
+
+// マイページ
+async function handleMyPage(event, userId, displayName) {
+  const user = db.getOrCreateUser(userId, displayName);
+  const planInfo = usageLimiter.getPlanInfo(user.plan);
+  
+  // 今日の残り回数
+  db.resetDailyUsageIfNeeded(userId);
+  const remainingToday = planInfo.dailyLimit - user.usageCount.today;
+  
+  let myPageMessage = `📊 ${displayName}さんのマイページ\n\n`;
+  myPageMessage += `【現在のプラン】\n${planInfo.name}\n\n`;
+  
+  if (user.plan !== 'free') {
+    myPageMessage += `【今日の残り回数】\n${remainingToday}回\n\n`;
+  }
+  
+  if (user.plan === 'free') {
+    myPageMessage += `【無料占い】\n${user.freeReadingUsed ? '使用済み' : '未使用'}\n\n`;
+  }
+  
+  // 占い履歴
+  if (user.readingHistory && user.readingHistory.length > 0) {
+    myPageMessage += `【最近の占い】\n`;
+    user.readingHistory.slice(0, 3).forEach((reading, index) => {
+      const date = new Date(reading.timestamp).toLocaleDateString('ja-JP');
+      const type = reading.type === 'love' ? '恋愛占い' : '一般占い';
+      const theme = reading.theme ? `（${reading.theme}）` : '';
+      myPageMessage += `${index + 1}. ${date} - ${type}${theme}\n`;
+    });
+  }
+  
+  myPageMessage += `\n✨ いつもありがとうございます 💕`;
+  
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: myPageMessage
+  });
+}
+
+// 決済
+async function handlePayment(event, userId, displayName) {
+  const paymentMessage = `💳 料金プラン 💳
+
+【単品購入】
+💫 380円/回
+　・何回でもOK
+　・ルカとの会話あり
+　・3カード占い
+
+【月額会員】
+👑 ライト：3,000円/月
+　・1日1回
+　・ルカとの会話あり
+
+👑 スタンダード：5,000円/月
+　・1日2回
+　・ルカとの会話あり
+
+👑 プレミアム：9,800円/3ヶ月
+　・1日2回
+　・ルカとの会話あり
+　・3ヶ月でお得！
+
+※有料会員でも単品購入可能です
+
+━━━━━━━━━━━━━━
+
+💬 サポート
+
+ご質問やお困りのことがあれば、
+「サポート」と送信してください😊
+
+ルカがお答えします✨
+
+━━━━━━━━━━━━━━
+
+※決済機能は準備中です
+※近日公開予定です✨`;
+  
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: paymentMessage
+  });
+}
+
+// API: カード詳細取得
+app.get('/api/card-detail', (req, res) => {
+  const cardName = req.query.name;
+  const card = tarotGuide[cardName];
+  
+  if (card) {
+    res.json(card);
+  } else {
+    res.json({
+      upright: '解釈を準備中です',
+      reversed: '解釈を準備中です'
+    });
+  }
+});
+
+// API: ユーザーデータ取得
+app.get('/api/user-data', (req, res) => {
+  const userId = req.query.userId;
+  const user = db.getOrCreateUser(userId);
+  
+  res.json(user);
+});
+
+// LIFFページ用の静的ファイル配信
+app.use('/liff', express.static('liff'));
+
+// ヘルスチェック
 app.get('/', (req, res) => {
   res.send('Tarot LINE Bot is running!');
 });
 
 // サーバー起動
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  
+  // データベース初期化
+  db.getOrCreateUser('system', 'System');
+  console.log('Database initialized');
 });

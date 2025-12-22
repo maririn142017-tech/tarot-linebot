@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マイページ - ルカのタロット占い</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .user-name {
+      font-size: 20px;
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    .section {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .plan-info {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+
+    .plan-name {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .plan-detail {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .usage-info {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px;
+      background: #f8f9ff;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .usage-label {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .usage-value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .history-item {
+      padding: 12px;
+      background: #f8f9ff;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-left {
+      flex: 1;
+    }
+
+    .history-date {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 3px;
+    }
+
+    .history-type {
+      font-size: 15px;
+      color: #333;
+      font-weight: bold;
+    }
+
+    .history-theme {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .history-icon {
+      font-size: 24px;
+    }
+
+    .loading {
+      text-align: center;
+      color: white;
+      padding: 40px;
+      font-size: 18px;
+    }
+
+    .empty-message {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+      font-size: 14px;
+    }
+
+    .footer {
+      text-align: center;
+      color: white;
+      margin-top: 20px;
+      padding: 15px;
+      opacity: 0.8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loading" class="loading">
+      読み込み中...
+    </div>
+
+    <div id="content" style="display: none;">
+      <div class="header">
+        <h1>📊 マイページ</h1>
+        <div class="user-name" id="user-name"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">👑 現在のプラン</div>
+        <div class="plan-info">
+          <div class="plan-name" id="plan-name"></div>
+          <div class="plan-detail" id="plan-detail"></div>
+        </div>
+      </div>
+
+      <div class="section" id="usage-section">
+        <div class="section-title">📈 利用状況</div>
+        <div id="usage-info"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📜 最近の占い</div>
+        <div id="history-list"></div>
+      </div>
+
+      <div class="footer">
+        ✨ いつもありがとうございます 💕
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let userId = null;
+
+    // LIFF初期化
+    window.onload = function() {
+      liff.init({
+        liffId: 'YOUR_LIFF_ID' // 後で設定
+      }).then(() => {
+        if (liff.isLoggedIn()) {
+          liff.getProfile().then(profile => {
+            userId = profile.userId;
+            loadUserData();
+          }).catch(err => {
+            console.error('プロフィール取得エラー:', err);
+            document.getElementById('loading').textContent = 'エラーが発生しました';
+          });
+        } else {
+          liff.login();
+        }
+      }).catch((err) => {
+        console.error('LIFF初期化エラー:', err);
+        document.getElementById('loading').textContent = 'エラーが発生しました';
+      });
+    };
+
+    // ユーザーデータを読み込み
+    async function loadUserData() {
+      try {
+        const response = await fetch(`/api/user-data?userId=${userId}`);
+        const data = await response.json();
+        
+        displayUserData(data);
+        
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+      } catch (error) {
+        console.error('データ取得エラー:', error);
+        document.getElementById('loading').textContent = 'データの取得に失敗しました';
+      }
+    }
+
+    // ユーザーデータを表示
+    function displayUserData(data) {
+      // ユーザー名
+      document.getElementById('user-name').textContent = `${data.displayName}さん`;
+      
+      // プラン情報
+      const planInfo = getPlanInfo(data.plan);
+      document.getElementById('plan-name').textContent = planInfo.name;
+      document.getElementById('plan-detail').textContent = planInfo.detail;
+      
+      // 利用状況
+      const usageInfo = document.getElementById('usage-info');
+      if (data.plan === 'free') {
+        usageInfo.innerHTML = `
+          <div class="usage-info">
+            <span class="usage-label">無料占い</span>
+            <span class="usage-value">${data.freeReadingUsed ? '使用済み' : '未使用'}</span>
+          </div>
+        `;
+      } else {
+        const remaining = planInfo.dailyLimit - data.usageCount.today;
+        usageInfo.innerHTML = `
+          <div class="usage-info">
+            <span class="usage-label">今日の残り回数</span>
+            <span class="usage-value">${remaining}回</span>
+          </div>
+          <div class="usage-info">
+            <span class="usage-label">今日の利用回数</span>
+            <span class="usage-value">${data.usageCount.today}回</span>
+          </div>
+        `;
+      }
+      
+      // 占い履歴
+      const historyList = document.getElementById('history-list');
+      if (data.readingHistory && data.readingHistory.length > 0) {
+        historyList.innerHTML = '';
+        data.readingHistory.slice(0, 10).forEach(reading => {
+          const item = createHistoryItem(reading);
+          historyList.appendChild(item);
+        });
+      } else {
+        historyList.innerHTML = '<div class="empty-message">まだ占いの履歴がありません</div>';
+      }
+    }
+
+    // プラン情報を取得
+    function getPlanInfo(plan) {
+      const plans = {
+        free: {
+          name: '無料プラン',
+          detail: '初回1回のみ無料で占えます',
+          dailyLimit: 0
+        },
+        single: {
+          name: '単品購入',
+          detail: '380円/回で何回でも占えます',
+          dailyLimit: 999
+        },
+        light: {
+          name: 'ライト会員',
+          detail: '3,000円/月 - 1日1回',
+          dailyLimit: 1
+        },
+        standard: {
+          name: 'スタンダード会員',
+          detail: '5,000円/月 - 1日2回',
+          dailyLimit: 2
+        },
+        premium: {
+          name: 'プレミアム会員',
+          detail: '9,800円/3ヶ月 - 1日2回',
+          dailyLimit: 2
+        }
+      };
+      return plans[plan] || plans.free;
+    }
+
+    // 履歴アイテムを作成
+    function createHistoryItem(reading) {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      
+      const date = new Date(reading.timestamp).toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      
+      const type = reading.type === 'love' ? '恋愛占い' : '一般占い';
+      const icon = reading.type === 'love' ? '💕' : '🔮';
+      const theme = reading.theme ? `（${reading.theme}）` : '';
+      
+      div.innerHTML = `
+        <div class="history-left">
+          <div class="history-date">${date}</div>
+          <div class="history-type">${type}</div>
+          <div class="history-theme">${theme}</div>
+        </div>
+        <div class="history-icon">${icon}</div>
+      `;
+      
+      return div;
+    }
+  </script>
+</body>
+</html>

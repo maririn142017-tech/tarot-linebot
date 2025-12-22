@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一般占い - ルカのタロット占い</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+      padding: 20px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+
+    .theme-card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .theme-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .theme-card:active {
+      transform: translateY(-2px);
+    }
+
+    .theme-icon {
+      font-size: 48px;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .theme-content {
+      flex: 1;
+    }
+
+    .theme-title {
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .theme-description {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.4;
+    }
+
+    .loading {
+      text-align: center;
+      color: white;
+      padding: 40px;
+      font-size: 18px;
+    }
+
+    .footer {
+      text-align: center;
+      color: white;
+      margin-top: 30px;
+      padding: 20px;
+      opacity: 0.8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔮 一般占い 🔮</h1>
+      <p>どのテーマで占いたいですか？</p>
+    </div>
+
+    <div id="loading" class="loading">
+      読み込み中...
+    </div>
+
+    <div id="themes" class="theme-grid" style="display: none;">
+      <div class="theme-card" onclick="selectTheme('仕事運')">
+        <div class="theme-icon">💼</div>
+        <div class="theme-content">
+          <div class="theme-title">仕事運</div>
+          <div class="theme-description">今の仕事の状況や今後の展開は？</div>
+        </div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('金運')">
+        <div class="theme-icon">💰</div>
+        <div class="theme-content">
+          <div class="theme-title">金運</div>
+          <div class="theme-description">お金の流れや財運の状態は？</div>
+        </div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('健康運')">
+        <div class="theme-icon">🏥</div>
+        <div class="theme-content">
+          <div class="theme-title">健康運</div>
+          <div class="theme-description">体調や健康面で気をつけることは？</div>
+        </div>
+      </div>
+
+      <div class="theme-card" onclick="selectTheme('人間関係運')">
+        <div class="theme-icon">👥</div>
+        <div class="theme-content">
+          <div class="theme-title">人間関係運</div>
+          <div class="theme-description">周りの人との関係性はどう？</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      タップするとLINEに戻って占いが始まります✨
+    </div>
+  </div>
+
+  <script>
+    // LIFF初期化
+    window.onload = function() {
+      liff.init({
+        liffId: 'YOUR_LIFF_ID' // 後で設定
+      }).then(() => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('themes').style.display = 'grid';
+      }).catch((err) => {
+        console.error('LIFF初期化エラー:', err);
+        document.getElementById('loading').textContent = 'エラーが発生しました';
+      });
+    };
+
+    // テーマ選択
+    function selectTheme(theme) {
+      if (!liff.isInClient()) {
+        alert('LINEアプリで開いてください');
+        return;
+      }
+
+      // LINEにメッセージを送信
+      liff.sendMessages([{
+        type: 'text',
+        text: `一般占い：${theme}`
+      }]).then(() => {
+        liff.closeWindow();
+      }).catch((err) => {
+        console.error('メッセージ送信エラー:', err);
+        alert('エラーが発生しました');
+      });
+    }
+  </script>
+</body>
+</html>

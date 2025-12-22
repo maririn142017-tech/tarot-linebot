@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カード解釈集 - ルカのタロット占い</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .tabs {
+      display: flex;
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 80px;
+      z-index: 99;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 15px 10px;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+      font-size: 14px;
+      font-weight: bold;
+      color: #666;
+    }
+
+    .tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+      background: #f8f9ff;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .card-item {
+      background: white;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+
+    .card-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .card-item:active {
+      transform: translateY(-1px);
+    }
+
+    .card-name {
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      font-size: 18px;
+      color: #666;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+
+    .modal-content {
+      background: white;
+      margin: 50px auto;
+      max-width: 500px;
+      border-radius: 15px;
+      box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+    }
+
+    .modal-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 15px 15px 0 0;
+      text-align: center;
+    }
+
+    .modal-header h2 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .position-section {
+      margin-bottom: 25px;
+    }
+
+    .position-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .position-text {
+      font-size: 15px;
+      line-height: 1.8;
+      color: #333;
+      white-space: pre-line;
+    }
+
+    .close-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .close-btn:active {
+      background: #5568d3;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔮 カード解釈集 🔮</h1>
+    <p>タップで詳しい解釈が見れます</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('major')">大アルカナ</div>
+    <div class="tab" onclick="switchTab('wands')">ワンド</div>
+    <div class="tab" onclick="switchTab('cups')">カップ</div>
+    <div class="tab" onclick="switchTab('swords')">ソード</div>
+    <div class="tab" onclick="switchTab('pentacles')">ペンタクル</div>
+  </div>
+
+  <div class="container">
+    <div id="loading" class="loading">
+      読み込み中...
+    </div>
+
+    <div id="major" class="tab-content active" style="display: none;">
+      <div class="card-grid" id="major-grid"></div>
+    </div>
+
+    <div id="wands" class="tab-content">
+      <div class="card-grid" id="wands-grid"></div>
+    </div>
+
+    <div id="cups" class="tab-content">
+      <div class="card-grid" id="cups-grid"></div>
+    </div>
+
+    <div id="swords" class="tab-content">
+      <div class="card-grid" id="swords-grid"></div>
+    </div>
+
+    <div id="pentacles" class="tab-content">
+      <div class="card-grid" id="pentacles-grid"></div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modal-title"></h2>
+      </div>
+      <div class="modal-body">
+        <div class="position-section">
+          <div class="position-title">✨ 正位置</div>
+          <div class="position-text" id="modal-upright"></div>
+        </div>
+        <div class="position-section">
+          <div class="position-title">🔄 逆位置</div>
+          <div class="position-text" id="modal-reversed"></div>
+        </div>
+        <button class="close-btn" onclick="closeModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tarotCards = {
+      major: ['愚者', '魔術師', '女教皇', '女帝', '皇帝', '教皇', '恋人', '戦車', '力', '隠者', '運命の輪', '正義', '吊るされた男', '死神', '節制', '悪魔', '塔', '星', '月', '太陽', '審判', '世界'],
+      wands: ['エース', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'ペイジ', 'ナイト', 'クイーン', 'キング'],
+      cups: ['エース', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'ペイジ', 'ナイト', 'クイーン', 'キング'],
+      swords: ['エース', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'ペイジ', 'ナイト', 'クイーン', 'キング'],
+      pentacles: ['エース', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'ペイジ', 'ナイト', 'クイーン', 'キング']
+    };
+
+    const suitNames = {
+      wands: 'ワンド',
+      cups: 'カップ',
+      swords: 'ソード',
+      pentacles: 'ペンタクル'
+    };
+
+    // LIFF初期化
+    window.onload = function() {
+      liff.init({
+        liffId: 'YOUR_LIFF_ID' // 後で設定
+      }).then(() => {
+        loadCards();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('major').style.display = 'block';
+      }).catch((err) => {
+        console.error('LIFF初期化エラー:', err);
+        loadCards();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('major').style.display = 'block';
+      });
+    };
+
+    // カード一覧を読み込み
+    function loadCards() {
+      // 大アルカナ
+      const majorGrid = document.getElementById('major-grid');
+      tarotCards.major.forEach(card => {
+        const div = createCardElement(card, 'major');
+        majorGrid.appendChild(div);
+      });
+
+      // 小アルカナ
+      ['wands', 'cups', 'swords', 'pentacles'].forEach(suit => {
+        const grid = document.getElementById(`${suit}-grid`);
+        tarotCards[suit].forEach(card => {
+          const fullName = `${suitNames[suit]}の${card}`;
+          const div = createCardElement(fullName, suit);
+          grid.appendChild(div);
+        });
+      });
+    }
+
+    // カード要素を作成
+    function createCardElement(name, suit) {
+      const div = document.createElement('div');
+      div.className = 'card-item';
+      div.onclick = () => showCardDetail(name);
+      
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'card-name';
+      nameDiv.textContent = name;
+      
+      const subtitleDiv = document.createElement('div');
+      subtitleDiv.className = 'card-subtitle';
+      subtitleDiv.textContent = 'タップで詳細';
+      
+      div.appendChild(nameDiv);
+      div.appendChild(subtitleDiv);
+      
+      return div;
+    }
+
+    // タブ切り替え
+    function switchTab(tabName) {
+      // タブのアクティブ状態を更新
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      // コンテンツの表示を更新
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+        content.style.display = 'none';
+      });
+      const activeContent = document.getElementById(tabName);
+      activeContent.classList.add('active');
+      activeContent.style.display = 'block';
+    }
+
+    // カード詳細を表示
+    async function showCardDetail(cardName) {
+      try {
+        const response = await fetch(`/api/card-detail?name=${encodeURIComponent(cardName)}`);
+        const data = await response.json();
+        
+        document.getElementById('modal-title').textContent = cardName;
+        document.getElementById('modal-upright').textContent = data.upright || '解釈を準備中です';
+        document.getElementById('modal-reversed').textContent = data.reversed || '解釈を準備中です';
+        document.getElementById('modal').style.display = 'block';
+      } catch (error) {
+        console.error('カード詳細取得エラー:', error);
+        alert('カード情報の取得に失敗しました');
+      }
+    }
+
+    // モーダルを閉じる
+    function closeModal(event) {
+      if (!event || event.target.id === 'modal') {
+        document.getElementById('modal').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
