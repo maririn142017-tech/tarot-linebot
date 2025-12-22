@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe');
 const OpenAI = require('openai');
 const tarotReadings = require('./tarot-readings');
+const tarotGuide = require('./tarot-guide');
 const { generateAIReading } = require('./ai-reading-generator');
 
 const app = express();
@@ -310,9 +311,9 @@ async function handleEvent(event) {
       text: `💰 ペンタクル（14枚）\n\n${cardList}\n\nカード名を送信すると詳細が見れます。`
     };
   }
-  // 個別カードの詳細表示
-  else if (tarotReadings[userMessage]) {
-    const cardData = tarotReadings[userMessage];
+  // 個別カードの詳細表示（カード解釈集用）
+  else if (tarotGuide[userMessage]) {
+    const cardData = tarotGuide[userMessage];
     const imageUrl = getCloudinaryImageUrl(userMessage);
     
     await client.replyMessage(event.replyToken, [
