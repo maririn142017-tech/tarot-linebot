@@ -530,6 +530,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     
     // カードを引く
     const cards = drawCards(3);
+    console.log('Drawn cards:', cards);
     
     // AIによる詳しい鑑定結果を生成
     const userQuestion = `${profile.displayName}さんの${theme}の占い`;
@@ -537,8 +538,10 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       name: card.name,
       isReversed: card.reversed
     }));
+    console.log('Formatted cards:', drawnCards);
     
     const aiReading = await generateAIReading(userQuestion, drawnCards);
+    console.log('AI reading generated successfully');
     
     const resultMessage = `🔮 ${profile.displayName}さんの占い結果 🔮\n\n【${theme}】\n\n${aiReading}`;
     
