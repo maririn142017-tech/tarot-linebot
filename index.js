@@ -548,11 +548,22 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       result: resultMessage
     });
     
-    // 占い結果を送信
-    await client.pushMessage(userId, {
-      type: 'text',
-      text: resultMessage
-    });
+    // カード画像のURLを作成
+    const baseUrl = 'https://tarot-linebot.onrender.com';
+    const cardImages = cards.map(card => ({
+      type: 'image',
+      originalContentUrl: `${baseUrl}/cards/${encodeURIComponent(card.name)}.png`,
+      previewImageUrl: `${baseUrl}/cards/${encodeURIComponent(card.name)}.png`
+    }));
+    
+    // メッセージを送信（画像 + テキスト）
+    await client.pushMessage(userId, [
+      ...cardImages,
+      {
+        type: 'text',
+        text: resultMessage
+      }
+    ]);
     
     res.json({ success: true });
   } catch (error) {
@@ -563,6 +574,9 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
 
 // LIFFページ用の静的ファイル配信
 app.use('/liff', express.static('liff'));
+
+// カード画像用の静的ファイル配信
+app.use('/cards', express.static('public/cards'));
 
 // ヘルスチェック
 app.get('/', (req, res) => {
