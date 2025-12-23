@@ -1,6 +1,9 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
 const OpenAI = require('openai');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs');
 const tarotReadings = require('./tarot-readings');
 const tarotGuide = require('./tarot-guide');
 const { generateAIReading } = require('./ai-reading-generator');
@@ -548,12 +551,39 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       result: resultMessage
     });
     
-    // カード画像のURLを作成
+    // カード画像のURLを作成（逆位置対応）
     const baseUrl = 'https://tarot-linebot.onrender.com';
-    const cardImages = cards.map(card => ({
-      type: 'image',
-      originalContentUrl: `${baseUrl}/cards/${encodeURIComponent(card.name)}.png`,
-      previewImageUrl: `${baseUrl}/cards/${encodeURIComponent(card.name)}.png`
+    const cardImages = await Promise.all(cards.map(async (card) => {
+      let imageUrl;
+      
+      if (card.reversed) {
+        // 逆位置の場合、回転画像を生成
+        const originalPath = path.join(__dirname, 'public', 'cards', `${card.name}.png`);
+        const reversedFileName = `${card.name}_reversed_${Date.now()}.png`;
+        const reversedPath = path.join(__dirname, 'public', 'cards', 'temp', reversedFileName);
+        
+        // tempディレクトリがなければ作成
+        const tempDir = path.join(__dirname, 'public', 'cards', 'temp');
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+        
+        // 画像を180度回転
+        await sharp(originalPath)
+          .rotate(180)
+          .toFile(reversedPath);
+        
+        imageUrl = `${baseUrl}/cards/temp/${encodeURIComponent(reversedFileName)}`;
+      } else {
+        // 正位置の場合、そのまま
+        imageUrl = `${baseUrl}/cards/${encodeURIComponent(card.name)}.png`;
+      }
+      
+      return {
+        type: 'image',
+        originalContentUrl: imageUrl,
+        previewImageUrl: imageUrl
+      };
     }));
     
     // メッセージを送信（画像 + テキスト）
