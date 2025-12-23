@@ -488,7 +488,7 @@ app.get('/api/user-data', (req, res) => {
   res.json(user);
 });
 
-// API: LIFF経由で占いメッセージを送信
+// API: LIFF経由で占いを実行
 app.post('/api/send-reading', express.json(), async (req, res) => {
   try {
     const { userId, type, theme } = req.body;
@@ -497,15 +497,61 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
     
-    // メッセージを作成
-    const messageText = type === 'general' 
-      ? `一般占い：${theme}`
-      : `恋愛占い：${theme}`;
+    // ユーザー情報を取得
+    let profile;
+    try {
+      profile = await client.getProfile(userId);
+    } catch (error) {
+      console.error('プロフィール取得エラー:', error);
+      profile = { displayName: 'ゲスト' };
+    }
     
-    // LINE Messaging APIでメッセージを送信
+    const user = db.getOrCreateUser(userId, profile.displayName);
+    
+    // 利用制限チェック
+    const limitCheck = usageLimiter.checkUsageLimit(userId);
+    
+    if (!limitCheck.canUse) {
+      await client.pushMessage(userId, {
+        type: 'text',
+        text: limitCheck.message
+      });
+      return res.json({ success: true });
+    }
+    
+    // カードを引く
+    const cards = drawCards(3);
+    
+    // 占い結果のメッセージを作成
+    let resultMessage = `🔮 ${profile.displayName}さんの占い結果 🔮\n\n`;
+    resultMessage += `【${theme}】\n\n`;
+    
+    const positions = type === 'general' ? ['過去', '現在', '未来'] : ['現状', '課題', '未来'];
+    
+    cards.forEach((card, index) => {
+      const position = positions[index];
+      const positionText = card.reversed ? '逆位置' : '正位置';
+      const interpretation = getCardInterpretation(card.name, card.reversed);
+      
+      resultMessage += `【${position}】${card.name}（${positionText}）\n`;
+      resultMessage += `${interpretation}\n\n`;
+    });
+    
+    // 使用回数を記録
+    usageLimiter.afterReading(userId);
+    
+    // 占い履歴に追加
+    db.addReadingHistory(userId, {
+      type: type,
+      theme: theme,
+      cards: cards,
+      result: resultMessage
+    });
+    
+    // 占い結果を送信
     await client.pushMessage(userId, {
       type: 'text',
-      text: messageText
+      text: resultMessage
     });
     
     res.json({ success: true });
