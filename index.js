@@ -522,6 +522,12 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       return res.json({ success: true });
     }
     
+    // 待機メッセージを送信
+    await client.pushMessage(userId, {
+      type: 'text',
+      text: 'カードを引いてるから、少し待っててね✨\n詳しい解釈を作ってるよ💫'
+    });
+    
     // カードを引く
     const cards = drawCards(3);
     
