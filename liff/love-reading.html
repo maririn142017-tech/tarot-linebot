@@ -177,11 +177,6 @@
 
     // テーマ選択
     function selectTheme(theme) {
-      if (!liff.isInClient()) {
-        alert('LINEアプリで開いてください');
-        return;
-      }
-
       // LINEにメッセージを送信
       liff.sendMessages([{
         type: 'text',
@@ -190,7 +185,8 @@
         liff.closeWindow();
       }).catch((err) => {
         console.error('メッセージ送信エラー:', err);
-        alert('エラーが発生しました');
+        // エラーが発生しても閉じる
+        liff.closeWindow();
       });
     }
   </script>
