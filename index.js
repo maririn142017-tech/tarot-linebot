@@ -488,6 +488,33 @@ app.get('/api/user-data', (req, res) => {
   res.json(user);
 });
 
+// API: LIFF経由で占いメッセージを送信
+app.post('/api/send-reading', express.json(), async (req, res) => {
+  try {
+    const { userId, type, theme } = req.body;
+    
+    if (!userId || !type || !theme) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    
+    // メッセージを作成
+    const messageText = type === 'general' 
+      ? `一般占い：${theme}`
+      : `恋愛占い：${theme}`;
+    
+    // LINE Messaging APIでメッセージを送信
+    await client.pushMessage(userId, {
+      type: 'text',
+      text: messageText
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Send reading error:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
 // LIFFページ用の静的ファイル配信
 app.use('/liff', express.static('liff'));
 

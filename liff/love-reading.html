@@ -70,6 +70,11 @@
       transform: translateY(-1px);
     }
 
+    .theme-card.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .theme-icon {
       font-size: 32px;
       min-width: 40px;
@@ -90,6 +95,45 @@
       opacity: 0.8;
       font-size: 14px;
     }
+
+    .loading {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .loading.active {
+      display: flex;
+    }
+
+    .loading-content {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #f093fb;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -100,55 +144,140 @@
     </div>
 
     <div class="theme-grid">
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：相手の気持ち" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('相手の気持ち')">
         <div class="theme-icon">💭</div>
         <div class="theme-title">相手の気持ち</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：2人の関係性" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('2人の関係性')">
         <div class="theme-icon">💑</div>
         <div class="theme-title">2人の関係性</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：恋の近未来" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('恋の近未来')">
         <div class="theme-icon">🔮</div>
         <div class="theme-title">恋の近未来</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：進展の可能性" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('進展の可能性')">
         <div class="theme-icon">📈</div>
         <div class="theme-title">進展の可能性</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：恋の決断" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('恋の決断')">
         <div class="theme-icon">⚖️</div>
         <div class="theme-title">恋の決断</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：相手との相性" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('相手との相性')">
         <div class="theme-icon">💕</div>
         <div class="theme-title">相手との相性</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：恋の障害" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('恋の障害')">
         <div class="theme-icon">🚧</div>
         <div class="theme-title">恋の障害</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：復縁の可能性" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('復縁の可能性')">
         <div class="theme-icon">🔄</div>
         <div class="theme-title">復縁の可能性</div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?恋愛占い：新しい出会い" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('新しい出会い')">
         <div class="theme-icon">✨</div>
         <div class="theme-title">新しい出会い</div>
-      </a>
+      </div>
     </div>
 
     <div class="footer">
       タップするとLINEに戻って占いが始まります✨
     </div>
   </div>
+
+  <div class="loading" id="loading">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p>占いを開始しています...</p>
+    </div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    let userId = null;
+
+    // LIFF初期化
+    liff.init({
+      liffId: '2008750658-us5be0bS'
+    }).then(() => {
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      
+      // ユーザーIDを取得
+      liff.getProfile().then(profile => {
+        userId = profile.userId;
+      }).catch(err => {
+        console.error('Profile error:', err);
+      });
+    }).catch(err => {
+      console.error('LIFF init error:', err);
+      alert('LIFFの初期化に失敗しました');
+    });
+
+    // テーマ選択
+    async function selectTheme(theme) {
+      if (!userId) {
+        alert('ユーザー情報を取得中です。もう一度お試しください。');
+        return;
+      }
+
+      // ローディング表示
+      document.getElementById('loading').classList.add('active');
+
+      // すべてのカードを無効化
+      document.querySelectorAll('.theme-card').forEach(card => {
+        card.classList.add('disabled');
+      });
+
+      try {
+        // サーバーにリクエストを送信
+        const response = await fetch('/api/send-reading', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: userId,
+            type: 'love',
+            theme: theme
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // 成功したらLIFFウィンドウを閉じる
+          setTimeout(() => {
+            liff.closeWindow();
+          }, 500);
+        } else {
+          throw new Error('Failed to send message');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('エラーが発生しました。もう一度お試しください。');
+        
+        // ローディングを非表示
+        document.getElementById('loading').classList.remove('active');
+        
+        // カードを再度有効化
+        document.querySelectorAll('.theme-card').forEach(card => {
+          card.classList.remove('disabled');
+        });
+      }
+    }
+  </script>
 </body>
 </html>

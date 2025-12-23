@@ -70,6 +70,11 @@
       transform: translateY(-2px);
     }
 
+    .theme-card.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .theme-icon {
       font-size: 48px;
       min-width: 60px;
@@ -101,6 +106,45 @@
       opacity: 0.8;
       font-size: 14px;
     }
+
+    .loading {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .loading.active {
+      display: flex;
+    }
+
+    .loading-content {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -111,42 +155,127 @@
     </div>
 
     <div class="theme-grid">
-      <a href="https://line.me/R/oaMessage/2008481817/?一般占い：仕事運" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('仕事運')">
         <div class="theme-icon">💼</div>
         <div class="theme-content">
           <div class="theme-title">仕事運</div>
           <div class="theme-description">今の仕事の状況や今後の展開は？</div>
         </div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?一般占い：金運" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('金運')">
         <div class="theme-icon">💰</div>
         <div class="theme-content">
           <div class="theme-title">金運</div>
           <div class="theme-description">お金の流れや財運の状態は？</div>
         </div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?一般占い：健康運" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('健康運')">
         <div class="theme-icon">🏥</div>
         <div class="theme-content">
           <div class="theme-title">健康運</div>
           <div class="theme-description">体調や健康面で気をつけることは？</div>
         </div>
-      </a>
+      </div>
 
-      <a href="https://line.me/R/oaMessage/2008481817/?一般占い：人間関係運" class="theme-card">
+      <div class="theme-card" onclick="selectTheme('人間関係運')">
         <div class="theme-icon">👥</div>
         <div class="theme-content">
           <div class="theme-title">人間関係運</div>
           <div class="theme-description">周りの人との関係性はどう？</div>
         </div>
-      </a>
+      </div>
     </div>
 
     <div class="footer">
       タップするとLINEに戻って占いが始まります✨
     </div>
   </div>
+
+  <div class="loading" id="loading">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p>占いを開始しています...</p>
+    </div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    let userId = null;
+
+    // LIFF初期化
+    liff.init({
+      liffId: '2008750510-wk5DplkU'
+    }).then(() => {
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      
+      // ユーザーIDを取得
+      liff.getProfile().then(profile => {
+        userId = profile.userId;
+      }).catch(err => {
+        console.error('Profile error:', err);
+      });
+    }).catch(err => {
+      console.error('LIFF init error:', err);
+      alert('LIFFの初期化に失敗しました');
+    });
+
+    // テーマ選択
+    async function selectTheme(theme) {
+      if (!userId) {
+        alert('ユーザー情報を取得中です。もう一度お試しください。');
+        return;
+      }
+
+      // ローディング表示
+      document.getElementById('loading').classList.add('active');
+
+      // すべてのカードを無効化
+      document.querySelectorAll('.theme-card').forEach(card => {
+        card.classList.add('disabled');
+      });
+
+      try {
+        // サーバーにリクエストを送信
+        const response = await fetch('/api/send-reading', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: userId,
+            type: 'general',
+            theme: theme
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // 成功したらLIFFウィンドウを閉じる
+          setTimeout(() => {
+            liff.closeWindow();
+          }, 500);
+        } else {
+          throw new Error('Failed to send message');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('エラーが発生しました。もう一度お試しください。');
+        
+        // ローディングを非表示
+        document.getElementById('loading').classList.remove('active');
+        
+        // カードを再度有効化
+        document.querySelectorAll('.theme-card').forEach(card => {
+          card.classList.remove('disabled');
+        });
+      }
+    }
+  </script>
 </body>
 </html>
