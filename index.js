@@ -526,14 +526,15 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     const cards = drawCards(3);
     
     // AIによる詳しい鑑定結果を生成
-    const aiReading = await generateAIReading({
-      userName: profile.displayName,
-      readingType: type,
-      theme: theme,
-      cards: cards
-    });
+    const userQuestion = `${profile.displayName}さんの${theme}の占い`;
+    const drawnCards = cards.map(card => ({
+      name: card.name,
+      isReversed: card.reversed
+    }));
     
-    const resultMessage = aiReading;
+    const aiReading = await generateAIReading(userQuestion, drawnCards);
+    
+    const resultMessage = `🔮 ${profile.displayName}さんの占い結果 🔮\n\n【${theme}】\n\n${aiReading}`;
     
     // 使用回数を記録
     usageLimiter.afterReading(userId);
