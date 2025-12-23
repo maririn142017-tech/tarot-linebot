@@ -130,7 +130,7 @@ async function handleEvent(event) {
 
 ルカは78枚のタロットカードであなたの未来を占うよ🔮
 
-初回は無料で3カード占いができるから、下のメニューから「一般占い」を選んでね🎶`;
+初回は無料で3カード占いができるから、下のメニューから「一般占い」または「恋愛占い」を選んでね🎶`;
     
     return client.replyMessage(event.replyToken, {
       type: 'text',
@@ -167,17 +167,6 @@ async function handleEvent(event) {
   }
   
   if (userMessage === '決済') {
-    // 初回ユーザーの場合は占いに誘導
-    if (usageLimiter.isFirstTimeUser(userId)) {
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `${profile.displayName}さん、こんにちは🌈
-
-初回は無料で3カード占いができるから、下のメニューから「一般占い」を選んでね♪
-
-決済は占いを体験してからでも遅くないよ✨`
-      });
-    }
     return handlePayment(event, userId, profile.displayName);
   }
   
