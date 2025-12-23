@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>一般占い - ルカのタロット占い</title>
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     * {
       margin: 0;
@@ -58,6 +57,8 @@
       display: flex;
       align-items: center;
       gap: 15px;
+      text-decoration: none;
+      color: inherit;
     }
 
     .theme-card:hover {
@@ -92,13 +93,6 @@
       line-height: 1.4;
     }
 
-    .loading {
-      text-align: center;
-      color: white;
-      padding: 40px;
-      font-size: 18px;
-    }
-
     .footer {
       text-align: center;
       color: white;
@@ -116,75 +110,43 @@
       <p>どのテーマで占いたいですか？</p>
     </div>
 
-    <div id="loading" class="loading">
-      読み込み中...
-    </div>
-
-    <div id="themes" class="theme-grid" style="display: none;">
-      <div class="theme-card" onclick="selectTheme('仕事運')">
+    <div class="theme-grid">
+      <a href="https://line.me/R/oaMessage/@099+/?一般占い：仕事運" class="theme-card">
         <div class="theme-icon">💼</div>
         <div class="theme-content">
           <div class="theme-title">仕事運</div>
           <div class="theme-description">今の仕事の状況や今後の展開は？</div>
         </div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('金運')">
+      <a href="https://line.me/R/oaMessage/@099+/?一般占い：金運" class="theme-card">
         <div class="theme-icon">💰</div>
         <div class="theme-content">
           <div class="theme-title">金運</div>
           <div class="theme-description">お金の流れや財運の状態は？</div>
         </div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('健康運')">
+      <a href="https://line.me/R/oaMessage/@099+/?一般占い：健康運" class="theme-card">
         <div class="theme-icon">🏥</div>
         <div class="theme-content">
           <div class="theme-title">健康運</div>
           <div class="theme-description">体調や健康面で気をつけることは？</div>
         </div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('人間関係運')">
+      <a href="https://line.me/R/oaMessage/@099+/?一般占い：人間関係運" class="theme-card">
         <div class="theme-icon">👥</div>
         <div class="theme-content">
           <div class="theme-title">人間関係運</div>
           <div class="theme-description">周りの人との関係性はどう？</div>
         </div>
-      </div>
+      </a>
     </div>
 
     <div class="footer">
       タップするとLINEに戻って占いが始まります✨
     </div>
   </div>
-
-  <script>
-    // LIFF初期化
-    liff.init({
-      liffId: '2008750510-wk5DplkU'
-    }).then(() => {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('themes').style.display = 'grid';
-    }).catch((err) => {
-      console.error('LIFF初期化エラー:', err);
-      document.getElementById('loading').textContent = 'エラーが発生しました: ' + err.message;
-    });
-
-    // テーマ選択
-    function selectTheme(theme) {
-      // LINEにメッセージを送信
-      liff.sendMessages([{
-        type: 'text',
-        text: '一般占い：' + theme
-      }]).then(() => {
-        // 成功したらウィンドウを閉じる
-        liff.closeWindow();
-      }).catch((err) => {
-        console.error('メッセージ送信エラー:', err);
-        alert('エラーが発生しました: ' + err.message);
-      });
-    }
-  </script>
 </body>
 </html>

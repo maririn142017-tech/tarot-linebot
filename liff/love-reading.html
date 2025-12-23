@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>恋愛占い - ルカのタロット占い</title>
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     * {
       margin: 0;
@@ -58,6 +57,8 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      text-decoration: none;
+      color: inherit;
     }
 
     .theme-card:hover {
@@ -81,13 +82,6 @@
       color: #333;
     }
 
-    .loading {
-      text-align: center;
-      color: white;
-      padding: 40px;
-      font-size: 18px;
-    }
-
     .footer {
       text-align: center;
       color: white;
@@ -105,88 +99,56 @@
       <p>どのテーマで占いたいですか？</p>
     </div>
 
-    <div id="loading" class="loading">
-      読み込み中...
-    </div>
-
-    <div id="themes" class="theme-grid" style="display: none;">
-      <div class="theme-card" onclick="selectTheme('相手の気持ち')">
+    <div class="theme-grid">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：相手の気持ち" class="theme-card">
         <div class="theme-icon">💭</div>
         <div class="theme-title">相手の気持ち</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('2人の関係性')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：2人の関係性" class="theme-card">
         <div class="theme-icon">💑</div>
         <div class="theme-title">2人の関係性</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('恋の近未来')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：恋の近未来" class="theme-card">
         <div class="theme-icon">🔮</div>
         <div class="theme-title">恋の近未来</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('進展の可能性')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：進展の可能性" class="theme-card">
         <div class="theme-icon">📈</div>
         <div class="theme-title">進展の可能性</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('恋の決断')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：恋の決断" class="theme-card">
         <div class="theme-icon">⚖️</div>
         <div class="theme-title">恋の決断</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('相手との相性')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：相手との相性" class="theme-card">
         <div class="theme-icon">💕</div>
         <div class="theme-title">相手との相性</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('恋の障害')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：恋の障害" class="theme-card">
         <div class="theme-icon">🚧</div>
         <div class="theme-title">恋の障害</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('復縁の可能性')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：復縁の可能性" class="theme-card">
         <div class="theme-icon">🔄</div>
         <div class="theme-title">復縁の可能性</div>
-      </div>
+      </a>
 
-      <div class="theme-card" onclick="selectTheme('新しい出会い')">
+      <a href="https://line.me/R/oaMessage/@099+/?恋愛占い：新しい出会い" class="theme-card">
         <div class="theme-icon">✨</div>
         <div class="theme-title">新しい出会い</div>
-      </div>
+      </a>
     </div>
 
     <div class="footer">
       タップするとLINEに戻って占いが始まります✨
     </div>
   </div>
-
-  <script>
-    // LIFF初期化
-    liff.init({
-      liffId: '2008750658-us5be0bS'
-    }).then(() => {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('themes').style.display = 'grid';
-    }).catch((err) => {
-      console.error('LIFF初期化エラー:', err);
-      document.getElementById('loading').textContent = 'エラーが発生しました: ' + err.message;
-    });
-
-    // テーマ選択
-    function selectTheme(theme) {
-      // LINEにメッセージを送信
-      liff.sendMessages([{
-        type: 'text',
-        text: '恋愛占い：' + theme
-      }]).then(() => {
-        // 成功したらウィンドウを閉じる
-        liff.closeWindow();
-      }).catch((err) => {
-        console.error('メッセージ送信エラー:', err);
-        alert('エラーが発生しました: ' + err.message);
-      });
-    }
-  </script>
 </body>
 </html>
