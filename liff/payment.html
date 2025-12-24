@@ -334,6 +334,10 @@
 
       try {
         // Stripe Checkoutセッション作成APIを呼び出し
+        　console.log('Calling API:', '/api/create-checkout-session');
+　　　　　console.log('userId:', userId);
+　　　　　console.log('planType:', planType);
+
         const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
           headers: {
