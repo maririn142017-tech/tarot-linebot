@@ -761,7 +761,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
     
 // Stripe Customerを作成（既存の場合は取得）
 let customer;
-const user = await db.getUser(userId);
+const user = await db.getOrCreateUser(userId);
+
 
 if (user && user.stripeCustomerId) {
   customer = await stripe.customers.retrieve(user.stripeCustomerId);
