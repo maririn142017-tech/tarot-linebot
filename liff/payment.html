@@ -322,7 +322,10 @@
 
     // プラン選択
     async function selectPlan(planType) {
-      if (!userId) {
+  alert('selectPlan called: ' + planType);  // デバッグ用
+  
+  if (!userId) {
+
         showError('ユーザー情報の取得に失敗しました');
         return;
       }
