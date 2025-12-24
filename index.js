@@ -15,6 +15,9 @@ const support = require('./support');
 
 const app = express();
 
+// JSONリクエストボディのパース用ミドルウェア
+app.use(express.json());
+
 // 環境変数から設定を読み込み
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
