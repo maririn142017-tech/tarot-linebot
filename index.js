@@ -787,8 +787,8 @@ if (user && user.stripeCustomerId) {
         },
       ],
       mode: isSubscription ? 'subscription' : 'payment',
-      success_url: `${process.env.BASE_URL || 'https://your-app.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.BASE_URL || 'https://your-app.com'}/liff/payment.html`,
+      success_url: `https://liff.line.me/2008760002-EwUmXW6q?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+cancel_url: `https://liff.line.me/2008760002-EwUmXW6q`,
       client_reference_id: userId, // LINE User IDを保存
       metadata: {
         userId: userId,
