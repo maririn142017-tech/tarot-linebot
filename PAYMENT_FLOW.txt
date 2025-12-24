@@ -1,0 +1,144 @@
+================================================================================
+                    Stripe決済フロー - 簡易版
+================================================================================
+
+【全体の流れ】
+
+1. ユーザーがLINEで「料金プラン」ボタンをタップ
+   ↓
+2. LIFF決済ページ (payment.html) が開く
+   - 単品購入 ¥380
+   - ライト会員 ¥3,000/月
+   - スタンダード会員 ¥5,000/月 ⭐おすすめ
+   - プレミアム会員 ¥9,800/3ヶ月
+   ↓
+3. ユーザーがプランを選択
+   ↓
+4. サーバーに POST /api/create-checkout-session
+   - userId と planType を送信
+   ↓
+5. サーバーが Stripe Checkout セッションを作成
+   - Price ID を選択
+   - Stripe API を呼び出し
+   ↓
+6. Stripe Checkout ページにリダイレクト
+   - カード情報入力
+   - テストカード: 4242 4242 4242 4242
+   ↓
+7. 決済処理
+   ↓
+8. Stripe が Webhook を送信
+   POST /webhook/stripe
+   イベント: checkout.session.completed
+   ↓
+9. サーバーがユーザープランを更新
+   - users.json に保存
+   ↓
+10. 決済成功ページ (/payment-success) にリダイレクト
+    - 「お支払い完了！🎉」を表示
+    ↓
+11. LINEに完了通知を送信
+    - 「お支払いが完了しました！」
+
+================================================================================
+
+【Webhook イベント】
+
+■ checkout.session.completed (決済完了)
+  → ユーザープランを更新
+  → 単品購入: plan = 'single'
+  → 定期購読: plan = 'light' / 'standard' / 'premium'
+                + subscription情報を保存
+
+■ customer.subscription.updated (サブスクリプション更新)
+  → 自動更新時に終了日を延長
+
+■ customer.subscription.deleted (サブスクリプションキャンセル)
+  → プランを 'free' に戻す
+  → LINEに「キャンセルされました」通知
+
+================================================================================
+
+【データの流れ】
+
+[クライアント] → [サーバー]
+{
+  "userId": "U1234567890abcdef",
+  "planType": "standard"
+}
+
+[サーバー] → [Stripe]
+{
+  "price": "price_1Shf77R7a9cchBiykQXzYY6H",
+  "mode": "subscription",
+  "metadata": {
+    "userId": "U1234567890abcdef",
+    "planType": "standard"
+  }
+}
+
+[Stripe] → [サーバー (Webhook)]
+{
+  "type": "checkout.session.completed",
+  "data": {
+    "metadata": {
+      "userId": "U1234567890abcdef",
+      "planType": "standard"
+    }
+  }
+}
+
+[サーバー] → [データベース (users.json)]
+{
+  "userId": "U1234567890abcdef",
+  "plan": "standard",
+  "subscription": {
+    "startDate": "2024-12-24T10:00:00.000Z",
+    "endDate": "2025-01-24T10:00:00.000Z",
+    "autoRenew": true,
+    "stripeSubscriptionId": "sub_xxxxx"
+  }
+}
+
+================================================================================
+
+【セキュリティ】
+
+✅ 価格はサーバー側で定義（クライアントから受け取らない）
+✅ Webhook署名を検証（STRIPE_WEBHOOK_SECRET）
+✅ ユーザーIDはLIFFで取得（認証済み）
+✅ APIキーは環境変数で管理
+
+================================================================================
+
+【テスト方法】
+
+1. 環境変数を設定
+   - STRIPE_SECRET_KEY
+   - BASE_URL
+   - STRIPE_WEBHOOK_SECRET (Webhook作成後)
+
+2. LIFF アプリを作成
+   - Endpoint URL: https://your-app.onrender.com/liff/payment.html
+   - LIFF ID を取得
+
+3. payment.html の LIFF ID を更新
+
+4. Stripe Webhook を作成
+   - URL: https://your-app.onrender.com/webhook/stripe
+   - イベント: checkout.session.completed など
+
+5. テストカードで決済
+   - カード番号: 4242 4242 4242 4242
+   - 有効期限: 12/34
+   - CVC: 123
+
+6. 確認
+   - 決済成功ページが表示される
+   - LINEに通知が届く
+   - users.json でプランが更新されている
+
+================================================================================
+
+作成日: 2024年12月24日
+バージョン: 1.0 (テスト環境)

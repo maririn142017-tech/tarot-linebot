@@ -1,5 +1,6 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const OpenAI = require('openai');
 const sharp = require('sharp');
 const path = require('path');
@@ -18,6 +19,14 @@ const app = express();
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET,
+};
+
+// Stripe Price IDs（テスト環境）
+const STRIPE_PRICES = {
+  single: 'price_1Shf37R7a9cchBiybxEXoWiL',      // 単品購入 380円
+  light: 'price_1Shf5SR7a9cchBiyKmjKaMdK',       // ライト会員 3,000円/月
+  standard: 'price_1Shf77R7a9cchBiykQXzYY6H',    // スタンダード会員 5,000円/月
+  premium: 'price_1Shf8ER7a9cchBiyQ5GoWlTv'      // プレミアム会員 9,800円/3ヶ月
 };
 
 const client = new line.Client(config);
@@ -83,6 +92,128 @@ function getCardInterpretation(cardName, isReversed) {
   
   return '解釈が見つかりませんでした。';
 }
+
+// Stripe Webhookエンドポイント　（raw bodyが必要なのでexpress.json()の前に配置）
+app.post('/webhook/stripe', express.raw({type: 'application/json'}), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  let event;
+  
+  try {
+    // Webhook署名の検証
+    if (webhookSecret) {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } else {
+      // テスト環境ではWebhook Secretがない場合もある
+      event = JSON.parse(req.body);
+    }
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  
+  // イベント処理
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        // 決済完了
+        const session = event.data.object;
+        const userId = session.metadata.userId;
+        const planType = session.metadata.planType;
+        
+        console.log(`Payment completed: userId=${userId}, planType=${planType}`);
+        
+        // ユーザーのプランを更新
+        if (planType === 'single') {
+          // 単品購入の場合
+          db.updateUser(userId, {
+            plan: 'single',
+            freeReadingUsed: false // 単品購入でリセット
+          });
+        } else {
+          // 定期購読の場合
+          const now = new Date();
+          let endDate = new Date(now);
+          
+          // プランによって終了日を計算
+          if (planType === 'premium') {
+            endDate.setMonth(endDate.getMonth() + 3); // 3ヶ月
+          } else {
+            endDate.setMonth(endDate.getMonth() + 1); // 1ヶ月
+          }
+          
+          db.updateUser(userId, {
+            plan: planType,
+            subscription: {
+              startDate: now.toISOString(),
+              endDate: endDate.toISOString(),
+              autoRenew: true,
+              stripeSubscriptionId: session.subscription,
+              notificationSent: false
+            }
+          });
+        }
+        
+        console.log(`User plan updated: userId=${userId}, plan=${planType}`);
+        break;
+        
+      case 'customer.subscription.updated':
+        // サブスクリプション更新
+        const subscription = event.data.object;
+        const subUserId = subscription.metadata.userId;
+        
+        if (subscription.status === 'active') {
+          console.log(`Subscription renewed: userId=${subUserId}`);
+          
+          // 更新日を計算
+          const renewDate = new Date(subscription.current_period_end * 1000);
+          
+          db.updateUser(subUserId, {
+            subscription: {
+              ...db.getOrCreateUser(subUserId).subscription,
+              endDate: renewDate.toISOString(),
+              autoRenew: true
+            }
+          });
+        }
+        break;
+        
+      case 'customer.subscription.deleted':
+        // サブスクリプションキャンセル
+        const canceledSub = event.data.object;
+        const cancelUserId = canceledSub.metadata.userId;
+        
+        console.log(`Subscription canceled: userId=${cancelUserId}`);
+        
+        db.updateUser(cancelUserId, {
+          plan: 'free',
+          subscription: {
+            startDate: null,
+            endDate: null,
+            autoRenew: false,
+            stripeSubscriptionId: null,
+            notificationSent: false
+          }
+        });
+        
+        // キャンセル通知をLINEに送信
+        await client.pushMessage(cancelUserId, {
+          type: 'text',
+          text: 'サブスクリプションがキャンセルされました。\n\nいつでもまたご利用いただけます！🙏'
+        });
+        break;
+        
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+    
+    res.json({received: true});
+  } catch (error) {
+    console.error('Webhook handler error:', error);
+    res.status(500).json({error: 'Webhook handler failed'});
+  }
+});
 
 // Webhookエンドポイント
 app.post('/webhook', line.middleware(config), async (req, res) => {
@@ -604,6 +735,165 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
   } catch (error) {
     console.error('Send reading error:', error);
     res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// Stripe Checkout セッション作成API
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    const { userId, planType } = req.body;
+    
+    if (!userId || !planType) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    
+    // プランタイプに対応するPrice IDを取得
+    const priceId = STRIPE_PRICES[planType];
+    if (!priceId) {
+      return res.status(400).json({ error: 'Invalid plan type' });
+    }
+    
+    // 単品購入か定期購読かを判定
+    const isSubscription = planType !== 'single';
+    
+    // Stripe Checkoutセッションを作成
+    const sessionParams = {
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: isSubscription ? 'subscription' : 'payment',
+      success_url: `${process.env.BASE_URL || 'https://your-app.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.BASE_URL || 'https://your-app.com'}/liff/payment.html`,
+      client_reference_id: userId, // LINE User IDを保存
+      metadata: {
+        userId: userId,
+        planType: planType
+      }
+    };
+    
+    // 定期購読の場合、subscription_dataを追加
+    if (isSubscription) {
+      sessionParams.subscription_data = {
+        metadata: {
+          userId: userId,
+          planType: planType
+        }
+      };
+    }
+    
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Checkout session creation error:', error);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// 決済成功ページ
+app.get('/payment-success', async (req, res) => {
+  const sessionId = req.query.session_id;
+  
+  try {
+    // Checkoutセッション情報を取得
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const userId = session.metadata.userId;
+    const planType = session.metadata.planType;
+    
+    // 成功メッセージをLINEに送信
+    const planNames = {
+      single: '単品購入',
+      light: 'ライト会員',
+      standard: 'スタンダード会員',
+      premium: 'プレミアム会員'
+    };
+    
+    await client.pushMessage(userId, {
+      type: 'text',
+      text: `🎉 お支払いが完了しました！\n\n${planNames[planType]}のご購入ありがとうございます。\n\nさっそくタロット占いをお楽しみください！✨`
+    });
+    
+    // 成功ページを表示
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="ja">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>お支払い完了</title>
+        <style>
+          body {
+            font-family: 'Hiragino Sans', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+          }
+          .success-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 400px;
+          }
+          .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+          }
+          h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 15px;
+          }
+          p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+          }
+          .close-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="success-box">
+          <div class="success-icon">🎉</div>
+          <h1>お支払い完了！</h1>
+          <p>${planNames[planType]}のご購入ありがとうございます。<br><br>LINEトークからタロット占いをお楽しみください！</p>
+          <button class="close-button" onclick="closeWindow()">閉じる</button>
+        </div>
+        <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+        <script>
+          async function closeWindow() {
+            try {
+              await liff.init({ liffId: '2008760002-EwUmXW6q' });
+              liff.closeWindow();
+            } catch (error) {
+              window.close();
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Payment success page error:', error);
+    res.status(500).send('エラーが発生しました');
   }
 });
 
