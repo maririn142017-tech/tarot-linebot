@@ -113,7 +113,6 @@ console.log('req.body type:', typeof req.body);
 console.log('sig:', sig);
 console.log('webhookSecret:', webhookSecret ? 'exists' : 'missing');
 console.log('=====================');
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   
   let event;
   
