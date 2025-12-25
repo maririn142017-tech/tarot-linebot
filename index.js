@@ -16,8 +16,13 @@ const support = require('./support');
 const app = express();
 
 // JSONリクエストボディのパース用ミドルウェア
-app.use(express.json());
-
+app.use(express.json({
+  verify: (req, res, buf) => {
+    if (req.originalUrl === '/webhook/stripe') {
+      req.rawBody = buf.toString();
+    }
+  }
+}));
 // 環境変数から設定を読み込み
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -106,7 +111,7 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async (req,
   try {
     // Webhook署名の検証
     if (webhookSecret) {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      event = stripe.webhooks.constructEvent(req.rawBody || req.body, sig, webhookSecret);
     } else {
       // テスト環境ではWebhook Secretがない場合もある
       event = JSON.parse(req.body);
