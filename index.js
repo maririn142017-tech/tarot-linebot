@@ -97,7 +97,7 @@ function getCardInterpretation(cardName, isReversed) {
 }
 
 // Stripe Webhookエンドポイント　（raw bodyが必要なのでexpress.json()の前に配置）
-app.post('/webhook/stripe', express.raw({type: 'application/json'}), async (req, res) => {
+https://tarot-linebot.onrender.com/webhook/stripe
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   
