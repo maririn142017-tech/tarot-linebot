@@ -105,6 +105,7 @@ function getCardInterpretation(cardName, isReversed) {
 app.post('/webhook/stripe', express.raw({type: 'application/json'}), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   console.log('=== Webhook Debug ===');
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 console.log('req.originalUrl:', req.originalUrl);
 console.log('req.rawBody type:', typeof req.rawBody);
 console.log('req.rawBody length:', req.rawBody ? req.rawBody.length : 0);
