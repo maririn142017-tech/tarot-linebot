@@ -104,6 +104,14 @@ function getCardInterpretation(cardName, isReversed) {
 // Stripe Webhookエンドポイント　（raw bodyが必要なのでexpress.json()の前に配置）
 app.post('/webhook/stripe', express.raw({type: 'application/json'}), async (req, res) => {
   const sig = req.headers['stripe-signature'];
+  console.log('=== Webhook Debug ===');
+console.log('req.originalUrl:', req.originalUrl);
+console.log('req.rawBody type:', typeof req.rawBody);
+console.log('req.rawBody length:', req.rawBody ? req.rawBody.length : 0);
+console.log('req.body type:', typeof req.body);
+console.log('sig:', sig);
+console.log('webhookSecret:', webhookSecret ? 'exists' : 'missing');
+console.log('=====================');
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   
   let event;
