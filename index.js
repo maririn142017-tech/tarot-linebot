@@ -16,8 +16,13 @@ const support = require('./support');
 const app = express();
 
 // JSONリクエストボディのパース用ミドルウェア
-// JSONリクエストボディのパース用ミドルウェア
-app.use(express.json());
+app.use((req, res, next) => {
+  if (req.path === '/webhook/stripe') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
  
 // 環境変数から設定を読み込み
 const config = {
