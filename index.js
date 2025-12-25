@@ -19,7 +19,7 @@ const app = express();
 app.use(express.json({
   verify: (req, res, buf) => {
     if (req.originalUrl === '/webhook/stripe') {
-      req.rawBody = buf.toString();
+      req.rawBody = buf;
     }
   }
 }));
