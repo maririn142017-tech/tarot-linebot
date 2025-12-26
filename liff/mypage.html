@@ -199,6 +199,7 @@
 
   <script>
     let userId = null;
+    let displayName = null;
 
     // LIFF初期化
     window.onload = function() {
@@ -208,6 +209,7 @@
         if (liff.isLoggedIn()) {
           liff.getProfile().then(profile => {
             userId = profile.userId;
+            displayName = profile.displayName;
             loadUserData();
           }).catch(err => {
             console.error('プロフィール取得エラー:', err);
@@ -241,7 +243,7 @@
     // ユーザーデータを表示
     function displayUserData(data) {
       // ユーザー名
-      document.getElementById('user-name').textContent = `${data.displayName}さん`;
+      document.getElementById('user-name').textContent = `👤 ${displayName}さん`;
       
       // プラン情報
       const planInfo = getPlanInfo(data.plan);
