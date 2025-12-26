@@ -322,9 +322,24 @@
 
     // プラン選択
     async function selectPlan(planType) {
+      console.log('=== selectPlan called ===');
+      console.log('planType:', planType);
+      console.log('userId:', userId);
+      console.log('LIFF isLoggedIn:', liff.isLoggedIn());
+      
       if (!userId) {
-        showError('ユーザー情報の取得に失敗しました');
-        return;
+        console.error('userId is null, attempting to reinitialize LIFF');
+        try {
+          await initializeLiff();
+          if (!userId) {
+            showError('ユーザー情報の取得に失敗しました。ページを再読み込みしてください。');
+            return;
+          }
+        } catch (error) {
+          console.error('LIFF reinitialization failed:', error);
+          showError('ユーザー情報の取得に失敗しました。ページを再読み込みしてください。');
+          return;
+        }
       }
 
       showLoading();
@@ -332,8 +347,7 @@
       try {
         // Stripe Checkoutセッション作成APIを呼び出し
         console.log('Calling API:', '/api/create-checkout-session');
-        console.log('userId:', userId);
-        console.log('planType:', planType);
+        console.log('Request body:', JSON.stringify({ userId, planType }));
 
         const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
@@ -346,18 +360,25 @@
           })
         });
 
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
         const data = await response.json();
+        console.log('Response data:', data);
 
         if (data.url) {
+          console.log('Redirecting to:', data.url);
           // Stripe Checkoutページへリダイレクト
           window.location.href = data.url;
         } else {
+          console.error('No URL in response:', data);
           throw new Error('Checkout URL not received');
         }
       } catch (error) {
         console.error('Checkout error:', error);
+        console.error('Error stack:', error.stack);
         hideLoading();
-        showError('決済ページの作成に失敗しました');
+        showError('決済ページの作成に失敗しました: ' + error.message);
       }
     }
 
