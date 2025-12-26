@@ -322,10 +322,7 @@
 
     // プラン選択
     async function selectPlan(planType) {
-  alert('selectPlan called: ' + planType);  // デバッグ用
-  
-  if (!userId) {
-
+      if (!userId) {
         showError('ユーザー情報の取得に失敗しました');
         return;
       }
@@ -334,9 +331,9 @@
 
       try {
         // Stripe Checkoutセッション作成APIを呼び出し
-        　console.log('Calling API:', '/api/create-checkout-session');
-　　　　　console.log('userId:', userId);
-　　　　　console.log('planType:', planType);
+        console.log('Calling API:', '/api/create-checkout-session');
+        console.log('userId:', userId);
+        console.log('planType:', planType);
 
         const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
