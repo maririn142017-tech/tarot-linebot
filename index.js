@@ -801,8 +801,8 @@ if (user && user.stripeCustomerId) {
         },
       ],
       mode: isSubscription ? 'subscription' : 'payment',
-      success_url: `https://liff.line.me/2008760002-EwUmXW6q?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-cancel_url: `https://liff.line.me/2008760002-EwUmXW6q`,
+      success_url: `${process.env.BASE_URL || 'https://tarot-linebot.onrender.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://liff.line.me/2008760002-EwUmXW6q?payment=cancelled`,
       client_reference_id: userId, // LINE User IDを保存
       metadata: {
         userId: userId,
@@ -849,7 +849,7 @@ app.get('/payment-success', async (req, res) => {
     
     await client.pushMessage(userId, {
       type: 'text',
-      text: `🎉 お支払いが完了しました！\n\n${planNames[planType]}のご購入ありがとうございます。\n\nさっそくタロット占いをお楽しみください！✨`
+      text: `🎉 お支払いが完了しました！\n\n【${planNames[planType]}】\nご購入ありがとうございます💕\n\n✨ ルカとの深い会話\n✨ 1000文字の詳細鑑定\n✨ 毎日占える安心感\n\n下のメニューから「ルカ占い」を選んでね🔮💖`
     });
     
     // 成功ページを表示
