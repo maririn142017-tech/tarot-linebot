@@ -23,6 +23,7 @@ const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
+
 const client = new line.Client(config);
 
 // OpenAI APIクライアント
@@ -86,6 +87,9 @@ function getCardInterpretation(cardName, isReversed) {
   
   return '解釈が見つかりませんでした。';
 }
+
+// Stripe Webhookエンドポイント　（raw bodyが必要なのでexpress.json()の前に配置）
+
 // Webhookエンドポイント
 app.post('/webhook', line.middleware(config), async (req, res) => {
   try {
@@ -170,6 +174,7 @@ async function handleEvent(event) {
   if (userMessage === 'マイページ') {
     return handleMyPage(event, userId, profile.displayName);
   }
+  
   
   if (userMessage === 'サポート') {
     const supportGreeting = support.startSupport(userId, profile.displayName);
@@ -334,6 +339,9 @@ async function handleLukaReading(event, userId, displayName) {
 ✨ AIによる詳しい鑑定
 ✨ 1000文字の個別メッセージ
 
+
+
+下のメニューから「決済」をタップしてね🎶`
     });
   }
   
@@ -359,10 +367,6 @@ async function handleLukaReading(event, userId, displayName) {
 // カード解釈集
 async function handleCardGuide(event, userId) {
   const guideMessage = '🔮 タロットカード解釈集 🔮\n\n78枚のカードを見やすく表示します✨\n\n※現在準備中のため、もうすぐ利用可能になります！\n\n今しばらくお待ちください😊💕';
-
-ent.replyMessage(event.replyToken, {
-    type: 'text',
-    text: guideMessage
   });
 }
 
@@ -375,8 +379,7 @@ async function handleMyPage(event, userId, displayName) {
   db.resetDailyUsageIfNeeded(userId);
   const remainingToday = planInfo.dailyLimit - user.usageCount.today;
   
-  let myPageMessage = '📱 ' + displayName + 'さんのマイページ\n\n';
-
+    let myPageMessage = '📱 ' + displayName + 'さんのマイページ\n\n';
   myPageMessage += `【現在のプラン】\n${planInfo.name}\n\n`;
   
   if (user.plan !== 'free') {
@@ -405,6 +408,8 @@ async function handleMyPage(event, userId, displayName) {
     text: myPageMessage
   });
 }
+
+// 決済
 
 // API: カード詳細取得
 app.get('/api/card-detail', (req, res) => {
@@ -544,6 +549,10 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
+
+// Stripe Checkout セッション作成API
+
+// 決済成功ページ
 
 // LIFFページ用の静的ファイル配信
 app.use('/liff', express.static('liff'));
