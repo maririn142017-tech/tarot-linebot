@@ -375,7 +375,8 @@ async function handleMyPage(event, userId, displayName) {
   db.resetDailyUsageIfNeeded(userId);
   const remainingToday = planInfo.dailyLimit - user.usageCount.today;
   
-  let myPageMessage = `📊 ${displayName}さんのマイページ\n\n`;
+  let myPageMessage = '📱 ' + displayName + 'さんのマイページ\n\n';
+
   myPageMessage += `【現在のプラン】\n${planInfo.name}\n\n`;
   
   if (user.plan !== 'free') {
