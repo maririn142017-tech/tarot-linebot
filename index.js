@@ -364,9 +364,8 @@ async function handleCardGuide(event, userId) {
 
 ※現在準備中のため、もうすぐ利用可能になります！
 
-今しばらくお待ちください😊💕`;
-  
-  return client.replyMessage(event.replyToken, {
+今しばらくお待ちください😊💕;`
+ent.replyMessage(event.replyToken, {
     type: 'text',
     text: guideMessage
   });
