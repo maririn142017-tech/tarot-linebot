@@ -358,13 +358,8 @@ async function handleLukaReading(event, userId, displayName) {
 
 // カード解釈集
 async function handleCardGuide(event, userId) {
-  const guideMessage = `🔮 タロットカード解釈集 🔮
+  const guideMessage = '🔮 タロットカード解釈集 🔮\n\n78枚のカードを見やすく表示します✨\n\n※現在準備中のため、もうすぐ利用可能になります！\n\n今しばらくお待ちください😊💕';
 
-78枚のカードを見やすく表示します✨
-
-※現在準備中のため、もうすぐ利用可能になります！
-
-今しばらくお待ちください😊💕;`
 ent.replyMessage(event.replyToken, {
     type: 'text',
     text: guideMessage
