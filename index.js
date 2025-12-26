@@ -556,12 +556,19 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       };
     }));
     
-    // メッセージを送信（画像 + テキスト）
+    // 有料版への誘導メッセージ
+    const promotionMessage = 'ルカの占い、どうだった?🔮💕\nあなたの運命、もっと見てみない?\n\n💫 ルカとの深い会話\n💫 1000文字の詳細鑑定\n💫 毎日占える安心感\n\nもっと詳しく知りたいなら…\n有料会員がおすすめだよ✨\n「決済」をタップして、特別な鑑定を受けてね💖';
+    
+    // メッセージを送信（画像 + テキスト + プロモーション）
     await client.pushMessage(userId, [
       ...cardImages,
       {
         type: 'text',
         text: resultMessage
+      },
+      {
+        type: 'text',
+        text: promotionMessage
       }
     ]);
     
