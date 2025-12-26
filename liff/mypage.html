@@ -247,31 +247,22 @@
       
       // プラン情報
       const planInfo = getPlanInfo(data.plan);
-      document.getElementById('plan-name').textContent = planInfo.name;
+      document.getElementById('plan-name').textContent = `👑 ${planInfo.name}`;
       document.getElementById('plan-detail').textContent = planInfo.detail;
       
       // 利用状況
       const usageInfo = document.getElementById('usage-info');
-      if (data.plan === 'free') {
-        usageInfo.innerHTML = `
-          <div class="usage-info">
-            <span class="usage-label">無料占い</span>
-            <span class="usage-value">${data.freeReadingUsed ? '使用済み' : '未使用'}</span>
-          </div>
-        `;
-      } else {
-        const remaining = planInfo.dailyLimit - data.usageCount.today;
-        usageInfo.innerHTML = `
-          <div class="usage-info">
-            <span class="usage-label">今日の残り回数</span>
-            <span class="usage-value">${remaining}回</span>
-          </div>
-          <div class="usage-info">
-            <span class="usage-label">今日の利用回数</span>
-            <span class="usage-value">${data.usageCount.today}回</span>
-          </div>
-        `;
-      }
+      const remaining = planInfo.dailyLimit - (data.usageCount?.today || 0);
+      usageInfo.innerHTML = `
+        <div class="usage-info">
+          <span class="usage-label">今日の残り回数</span>
+          <span class="usage-value">${remaining}回</span>
+        </div>
+        <div class="usage-info">
+          <span class="usage-label">今日の利用回数</span>
+          <span class="usage-value">${data.usageCount?.today || 0}回</span>
+        </div>
+      `;
       
       // 占い履歴
       const historyList = document.getElementById('history-list');
@@ -289,11 +280,6 @@
     // プラン情報を取得
     function getPlanInfo(plan) {
       const plans = {
-        free: {
-          name: '無料プラン',
-          detail: '初回1回のみ無料で占えます',
-          dailyLimit: 0
-        },
         single: {
           name: '単品購入',
           detail: '380円/回で何回でも占えます',
@@ -315,7 +301,7 @@
           dailyLimit: 2
         }
       };
-      return plans[plan] || plans.free;
+      return plans[plan] || { name: '不明なプラン', detail: '', dailyLimit: 0 };
     }
 
     // 履歴アイテムを作成
