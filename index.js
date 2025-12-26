@@ -273,10 +273,19 @@ async function handleGeneralReadingWithTheme(event, userId, displayName, theme) 
     result: resultMessage
   });
   
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: resultMessage
-  });
+  // 有料版への誘導メッセージ
+  const promotionMessage = 'ルカの占い、どうだった?🔮💕\nあなたの運命、もっと見てみない?\n\n💫 ルカとの深い会話\n💫 1000文字の詳細鑑定\n💫 毎日占える安心感\n\nもっと詳しく知りたいなら…\n有料会員がおすすめだよ✨\n「決済」をタップして、特別な鑑定を受けてね💖';
+  
+  return client.replyMessage(event.replyToken, [
+    {
+      type: 'text',
+      text: resultMessage
+    },
+    {
+      type: 'text',
+      text: promotionMessage
+    }
+  ]);
 }
 
 // 恋愛占い（テーマあり）
@@ -320,10 +329,19 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
     result: resultMessage
   });
   
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: resultMessage
-  });
+  // 有料版への誘導メッセージ
+  const promotionMessage = 'ルカの占い、どうだった?🔮💕\nあなたの運命、もっと見てみない?\n\n💫 ルカとの深い会話\n💫 1000文字の詳細鑑定\n💫 毎日占える安心感\n\nもっと詳しく知りたいなら…\n有料会員がおすすめだよ✨\n「決済」をタップして、特別な鑑定を受けてね💖';
+  
+  return client.replyMessage(event.replyToken, [
+    {
+      type: 'text',
+      text: resultMessage
+    },
+    {
+      type: 'text',
+      text: promotionMessage
+    }
+  ]);
 }
 
 // ルカ占い（AI会話あり）
