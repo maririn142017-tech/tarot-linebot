@@ -179,6 +179,7 @@
           <div class="plan-name" id="plan-name"></div>
           <div class="plan-detail" id="plan-detail"></div>
         </div>
+        <div id="subscription-period" style="margin-top: 10px; font-size: 13px; color: #666;"></div>
       </div>
 
       <div class="section" id="usage-section">
@@ -249,6 +250,24 @@
       const planInfo = getPlanInfo(data.plan);
       document.getElementById('plan-name').textContent = `👑 ${planInfo.name}`;
       document.getElementById('plan-detail').textContent = planInfo.detail;
+      
+      // 契約期間を表示
+      const subscriptionPeriod = document.getElementById('subscription-period');
+      if (data.subscription && data.subscription.startDate && data.subscription.endDate) {
+        const startDate = new Date(data.subscription.startDate).toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        const endDate = new Date(data.subscription.endDate).toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        subscriptionPeriod.textContent = `📅 契約期間: ${startDate} 〜 ${endDate}`;
+      } else {
+        subscriptionPeriod.textContent = '';
+      }
       
       // 利用状況
       const usageInfo = document.getElementById('usage-info');
