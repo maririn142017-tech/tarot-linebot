@@ -627,6 +627,11 @@ async function handlePayment(event, userId, displayName) {
   });
 }
 
+// マイページHTML配信
+app.get('/mypage.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'mypage.html'));
+});
+
 // API: カード詳細取得
 app.get('/api/card-detail', (req, res) => {
   const cardName = req.query.name;
