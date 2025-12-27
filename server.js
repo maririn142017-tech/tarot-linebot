@@ -108,8 +108,8 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async (req,
   console.log('=== Webhook Debug ===');
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 console.log('req.originalUrl:', req.originalUrl);
-console.log('req.rawBody type:', typeof req.rawBody);
-console.log('req.rawBody length:', req.rawBody ? req.rawBody.length : 0);
+console.log('req.body is Buffer:', Buffer.isBuffer(req.body));
+console.log('req.body length:', req.body ? req.body.length : 0);
 console.log('req.body type:', typeof req.body);
 console.log('sig:', sig);
 console.log('webhookSecret:', webhookSecret ? 'exists' : 'missing');
