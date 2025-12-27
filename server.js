@@ -184,6 +184,21 @@ console.log('=====================');
         }
         
         console.log(`User plan updated: userId=${userId}, plan=${planType}`);
+              // 決済完了メッセージを送信
+      const planNames = {
+        single: '単品購入',
+        light: 'ライト会員',
+        standard: 'スタンダード会員',
+        premium: 'プレミアム会員'
+      };
+
+      const message = {
+        type: 'text',
+        text: `🎉 お支払いが完了しました！\n\n✨ ${planNames[planType] || planType}にアップグレードされました\n\nマイページで詳細を確認できます 📊`
+      };
+
+      await client.pushMessage(userId, message);
+      console.log(`✅ Payment notification sent to ${userId}`);
         break;
         
       case 'customer.subscription.updated':
