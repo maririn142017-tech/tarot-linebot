@@ -801,7 +801,7 @@ if (user && user.stripeCustomerId) {
         },
       ],
       mode: isSubscription ? 'subscription' : 'payment',
-      success_url: `${process.env.BASE_URL || 'https://tarot-linebot.onrender.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `https://liff.line.me/2008750798-ev9KiDfQ?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://liff.line.me/2008760002-EwUmXW6q?payment=cancelled`,
       client_reference_id: userId, // LINE User IDを保存
       metadata: {
@@ -916,9 +916,12 @@ app.get('/payment-success', async (req, res) => {
         <script>
           async function closeWindow() {
             try {
-              await liff.init({ liffId: '2008760002-EwUmXW6q' });
+              await liff.init({ liffId: '2008750798-ev9KiDfQ' });
               liff.closeWindow();
             } catch (error) {
+              console.error('LIFF close error:', error);
+              // LIFF環境外の場合、LINEトークへのリンクを表示
+              alert('このウィンドウを閉じて、LINEトークからタロット占いをお楽しみください！');
               window.close();
             }
           }
