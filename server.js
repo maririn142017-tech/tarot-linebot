@@ -779,6 +779,32 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       }
     ]);
     
+    // フォローアップメッセージを送信（単品購入ユーザーへの誘導）
+    const user = await db.getOrCreateUser(userId);
+    if (user.plan === 'single') {
+      // 少し待ってからフォローアップメッセージを送信
+      setTimeout(async () => {
+        try {
+          await client.pushMessage(userId, {
+            type: 'text',
+            text: `ルカの占い、どうだった？🔮💕
+
+あなたの運命、もっと見てみない？
+
+👑 ルカとの深い会話
+👑 1000文字の詳細鑑定
+👑 毎日占える安心感
+
+もっと詳しく知りたいなら...
+有料会員がおすすめだよ✨
+「決済」をタップして、特別な鑑定を受けてね💖`
+          });
+        } catch (error) {
+          console.error('Failed to send follow-up message:', error);
+        }
+      }, 2000);
+    }
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Send reading error:', error);
