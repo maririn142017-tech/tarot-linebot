@@ -155,13 +155,21 @@ console.log('=====================');
         // ユーザーのプランを更新
         if (planType === 'single') {
           // 単品購入の場合
-          db.updateUser(userId, {
+          const user = db.getOrCreateUser(userId);
+          const updates = {
             plan: 'single',
-            planChangedAt: new Date().toISOString(), // プラン変更時刻を記録
             freeReadingUsed: false // 単品購入でリセット
-          });
+          };
+          
+          // planChangedAtが設定されていない場合のみ記録
+          if (!user.planChangedAt) {
+            updates.planChangedAt = new Date().toISOString();
+          }
+          
+          db.updateUser(userId, updates);
         } else {
           // 定期購読の場合
+          const user = db.getOrCreateUser(userId);
           const now = new Date();
           let endDate = new Date(now);
           
@@ -172,9 +180,8 @@ console.log('=====================');
             endDate.setMonth(endDate.getMonth() + 1); // 1ヶ月
           }
           
-          db.updateUser(userId, {
+          const updates = {
             plan: planType,
-            planChangedAt: now.toISOString(), // プラン変更時刻を記録
             subscription: {
               startDate: now.toISOString(),
               endDate: endDate.toISOString(),
@@ -182,7 +189,14 @@ console.log('=====================');
               stripeSubscriptionId: session.subscription,
               notificationSent: false
             }
-          });
+          };
+          
+          // planChangedAtが設定されていない場合のみ記録
+          if (!user.planChangedAt) {
+            updates.planChangedAt = now.toISOString();
+          }
+          
+          db.updateUser(userId, updates);
         }
         
         console.log(`User plan updated: userId=${userId}, plan=${planType}`);
