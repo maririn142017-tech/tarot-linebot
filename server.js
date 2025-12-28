@@ -781,10 +781,16 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     
     // フォローアップメッセージを送信（単品購入ユーザーへの誘導）
     const user = await db.getOrCreateUser(userId);
+    console.log('User plan for follow-up message:', user.plan);
+    
     if (user.plan === 'single') {
+      console.log('Scheduling follow-up message for single purchase user');
       // 少し待ってからフォローアップメッセージを送信
-      setTimeout(async () => {
+      // setTimeoutをPromiseでラップして待機
+      (async () => {
+        await new Promise(resolve => setTimeout(resolve, 2000));
         try {
+          console.log('Sending follow-up message to:', userId);
           await client.pushMessage(userId, {
             type: 'text',
             text: `ルカの占い、どうだった？🔮💕
@@ -799,10 +805,13 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
 有料会員がおすすめだよ✨
 「決済」をタップして、特別な鑑定を受けてね💖`
           });
+          console.log('Follow-up message sent successfully');
         } catch (error) {
           console.error('Failed to send follow-up message:', error);
         }
-      }, 2000);
+      })();
+    } else {
+      console.log('User is not single purchase, skipping follow-up message');
     }
     
     res.json({ success: true });
