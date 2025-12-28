@@ -156,17 +156,32 @@ console.log('=====================');
         if (planType === 'single') {
           // 単品購入の場合
           const user = db.getOrCreateUser(userId);
-          const updates = {
-            plan: 'single',
-            freeReadingUsed: false // 単品購入でリセット
-          };
           
-          // planChangedAtが設定されていない場合のみ記録
-          if (!user.planChangedAt) {
-            updates.planChangedAt = new Date().toISOString();
+          // サブスクリプション会員かどうかをチェック
+          const isSubscriptionUser = ['light', 'standard', 'premium'].includes(user.plan);
+          
+          if (isSubscriptionUser) {
+            // サブスクリプション会員の場合、プランを上書きせず、単品購入回数を増やす
+            const currentCount = user.singlePurchaseCount || 0;
+            db.updateUser(userId, {
+              singlePurchaseCount: currentCount + 1
+            });
+            console.log(`Subscription user purchased single reading: userId=${userId}, singlePurchaseCount=${currentCount + 1}`);
+          } else {
+            // 無料または単品購入ユーザーの場合、プランを変更
+            const updates = {
+              plan: 'single',
+              freeReadingUsed: false // 単品購入でリセット
+            };
+            
+            // planChangedAtが設定されていない場合のみ記録
+            if (!user.planChangedAt) {
+              updates.planChangedAt = new Date().toISOString();
+            }
+            
+            db.updateUser(userId, updates);
+            console.log(`User upgraded to single purchase: userId=${userId}`);
           }
-          
-          db.updateUser(userId, updates);
         } else {
           // 定期購読の場合
           const user = db.getOrCreateUser(userId);

@@ -50,6 +50,7 @@ function getOrCreateUser(userId, displayName = null) {
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
       freeReadingUsed: false, // 無料占い使用済みフラグ
+      singlePurchaseCount: 0, // 単品購入回数（今日）
       usageCount: {
         today: 0,
         lastResetDate: new Date().toISOString().split('T')[0]
@@ -102,7 +103,8 @@ function resetDailyUsageIfNeeded(userId) {
       usageCount: {
         today: 0,
         lastResetDate: today
-      }
+      },
+      singlePurchaseCount: 0  // 単品購入回数もリセット
     });
   }
 }
@@ -173,16 +175,20 @@ function canUseReading(userId) {
     return true;
   }
   
-  // ライト：1日1回
+  // ライト：1日1回 + 単品購入回数
   if (user.plan === 'light') {
     const usedAfterPlanChange = getUsageCountAfterPlanChange(user);
-    return usedAfterPlanChange < 1;
+    const singlePurchaseCount = user.singlePurchaseCount || 0;
+    const totalLimit = 1 + singlePurchaseCount;
+    return usedAfterPlanChange < totalLimit;
   }
   
-  // スタンダード・プレミアム：1日2回
+  // スタンダード・プレミアム：1日2回 + 単品購入回数
   if (user.plan === 'standard' || user.plan === 'premium') {
     const usedAfterPlanChange = getUsageCountAfterPlanChange(user);
-    return usedAfterPlanChange < 2;
+    const singlePurchaseCount = user.singlePurchaseCount || 0;
+    const totalLimit = 2 + singlePurchaseCount;
+    return usedAfterPlanChange < totalLimit;
   }
   
   return false;
