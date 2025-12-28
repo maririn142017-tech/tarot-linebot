@@ -235,21 +235,29 @@ console.log('=====================');
         db.updateUser(userId, { processedEvents });
         console.log(`✅ Event processed and recorded: eventId=${eventId}`);
         
-        // 決済完了メッセージを送信
-        const planNames = {
-          single: '単品購入',
-          light: 'ライト会員',
-          standard: 'スタンダード会員',
-          premium: 'プレミアム会員'
-        };
+        // 決済完了メッセージを送信（エラーが発生してもwebhook処理は成功とする）
+        try {
+          const planNames = {
+            single: '単品購入',
+            light: 'ライト会員',
+            standard: 'スタンダード会員',
+            premium: 'プレミアム会員'
+          };
 
-        const message = {
-          type: 'text',
-          text: `🎉 お支払いが完了しました！\n\n✨ ${planNames[planType] || planType}にアップグレードされました\n\nマイページで詳細を確認できます 📊`
-        };
+          const message = {
+            type: 'text',
+            text: `🎉 お支払いが完了しました！\n\n✨ ${planNames[planType] || planType}にアップグレードされました\n\nマイページで詳細を確認できます 📊`
+          };
 
-        await client.pushMessage(userId, message);
-        console.log(`✅ Payment notification sent to ${userId}`);
+          await client.pushMessage(userId, message);
+          console.log(`✅ Payment notification sent to ${userId}`);
+        } catch (notificationError) {
+          // LINE通知の送信に失敗しても、webhook処理は成功とする
+          console.error(`⚠️ Payment notification failed (but webhook processing succeeded): ${notificationError.message}`);
+          if (notificationError.response && notificationError.response.status === 429) {
+            console.log('🚫 LINE API rate limit exceeded, notification will be skipped');
+          }
+        }
         break;
         
       case 'customer.subscription.updated':
