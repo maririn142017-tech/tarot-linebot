@@ -157,6 +157,7 @@ console.log('=====================');
           // 単品購入の場合
           db.updateUser(userId, {
             plan: 'single',
+            planChangedAt: new Date().toISOString(), // プラン変更時刻を記録
             freeReadingUsed: false // 単品購入でリセット
           });
         } else {
@@ -173,6 +174,7 @@ console.log('=====================');
           
           db.updateUser(userId, {
             plan: planType,
+            planChangedAt: now.toISOString(), // プラン変更時刻を記録
             subscription: {
               startDate: now.toISOString(),
               endDate: endDate.toISOString(),
@@ -667,7 +669,13 @@ app.get('/api/user-data', (req, res) => {
   const userId = req.query.userId;
   const user = db.getOrCreateUser(userId);
   
-  res.json(user);
+  // プラン変更後の使用回数を追加
+  const usageCountAfterPlanChange = db.getUsageCountAfterPlanChange(user);
+  
+  res.json({
+    ...user,
+    usageCountAfterPlanChange
+  });
 });
 
 // API: LIFF経由で占いを実行

@@ -46,6 +46,7 @@ function getOrCreateUser(userId, displayName = null) {
       userId: userId,
       displayName: displayName,
       plan: 'free', // free, single, light, standard, premium
+      planChangedAt: new Date().toISOString(), // プラン変更時刻
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
       freeReadingUsed: false, // 無料占い使用済みフラグ
@@ -120,6 +121,27 @@ function incrementUsageCount(userId) {
   });
 }
 
+// プラン変更後の使用回数を取得
+function getUsageCountAfterPlanChange(user) {
+  // planChangedAtがない場合は今日の使用回数を返す
+  if (!user.planChangedAt) {
+    return user.usageCount.today;
+  }
+  
+  const planChangedAt = new Date(user.planChangedAt);
+  const readingHistory = user.readingHistory || [];
+  
+  // プラン変更後の今日の占い回数をカウント
+  const today = new Date().toISOString().split('T')[0];
+  const usedAfterPlanChange = readingHistory.filter(reading => {
+    const readingDate = new Date(reading.timestamp);
+    const readingDateStr = readingDate.toISOString().split('T')[0];
+    return readingDateStr === today && readingDate >= planChangedAt;
+  }).length;
+  
+  return usedAfterPlanChange;
+}
+
 // 使用可能回数をチェック
 function canUseReading(userId) {
   resetDailyUsageIfNeeded(userId);
@@ -137,12 +159,14 @@ function canUseReading(userId) {
   
   // ライト：1日1回
   if (user.plan === 'light') {
-    return user.usageCount.today < 1;
+    const usedAfterPlanChange = getUsageCountAfterPlanChange(user);
+    return usedAfterPlanChange < 1;
   }
   
   // スタンダード・プレミアム：1日2回
   if (user.plan === 'standard' || user.plan === 'premium') {
-    return user.usageCount.today < 2;
+    const usedAfterPlanChange = getUsageCountAfterPlanChange(user);
+    return usedAfterPlanChange < 2;
   }
   
   return false;
@@ -210,6 +234,7 @@ module.exports = {
   resetDailyUsageIfNeeded,
   incrementUsageCount,
   canUseReading,
+  getUsageCountAfterPlanChange,
   updateConversationState,
   resetConversation,
   addReadingHistory,
