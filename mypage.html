@@ -274,11 +274,20 @@
       const usedToday = data.usageCount?.today || 0;
       const remaining = planInfo.dailyLimit - usedToday;
       
-      // 単品購入または残り回数が0の場合は「都度購入」と表示
+      // 残り回数の表示ロジック
       let remainingText;
-      if (data.plan === 'single' || remaining <= 0) {
+      if (data.plan === 'single') {
+        // 単品購入の場合: 使用済みかどうかで判定
+        if (usedToday === 0) {
+          remainingText = '1回';  // まだ使っていない
+        } else {
+          remainingText = '都度購入';  // 使用済み
+        }
+      } else if (remaining <= 0) {
+        // サブスクリプションで使い切った場合
         remainingText = '都度購入';
       } else {
+        // サブスクリプションで残りがある場合
         remainingText = `${remaining}回`;
       }
       
