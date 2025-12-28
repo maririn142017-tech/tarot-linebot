@@ -149,8 +149,16 @@ console.log('=====================');
         const session = event.data.object;
         const userId = session.metadata.userId;
         const planType = session.metadata.planType;
+        const eventId = event.id; // StripeイベントID
         
-        console.log(`Payment completed: userId=${userId}, planType=${planType}`);
+        console.log(`Payment completed: userId=${userId}, planType=${planType}, eventId=${eventId}`);
+        
+        // 重複処理チェック
+        const user = db.getOrCreateUser(userId);
+        if (user.processedEvents && user.processedEvents.includes(eventId)) {
+          console.log(`⚠️ Event already processed: eventId=${eventId}, skipping`);
+          return res.json({ received: true, skipped: true });
+        }
         
         // ユーザーのプランを更新
         if (planType === 'single') {
@@ -216,6 +224,16 @@ console.log('=====================');
         
         const updatedUser = db.getOrCreateUser(userId);
         console.log(`User plan updated: userId=${userId}, actualPlan=${updatedUser.plan}, purchasedPlanType=${planType}, singlePurchaseCount=${updatedUser.singlePurchaseCount || 0}`);
+        
+        // 処理済みイベントIDを記録（重複処理を防ぐ）
+        const processedEvents = updatedUser.processedEvents || [];
+        processedEvents.push(eventId);
+        // 最大100個まで保持（古いものから削除）
+        if (processedEvents.length > 100) {
+          processedEvents.shift();
+        }
+        db.updateUser(userId, { processedEvents });
+        console.log(`✅ Event processed and recorded: eventId=${eventId}`);
         
         // 決済完了メッセージを送信
         const planNames = {

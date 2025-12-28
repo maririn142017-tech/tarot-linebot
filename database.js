@@ -51,6 +51,7 @@ function getOrCreateUser(userId, displayName = null) {
       lastUsedAt: null,
       freeReadingUsed: false, // 無料占い使用済みフラグ
       singlePurchaseCount: 0, // 単品購入回数（今日）
+      processedEvents: [], // 処理済みのStripe webhookイベントID（重複処理を防ぐ）
       usageCount: {
         today: 0,
         lastResetDate: new Date().toISOString().split('T')[0]
