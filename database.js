@@ -125,19 +125,35 @@ function incrementUsageCount(userId) {
 function getUsageCountAfterPlanChange(user) {
   // planChangedAtがない場合は今日の使用回数を返す
   if (!user.planChangedAt) {
+    console.log('[DEBUG] planChangedAt not found, returning today count:', user.usageCount.today);
     return user.usageCount.today;
   }
   
   const planChangedAt = new Date(user.planChangedAt);
   const readingHistory = user.readingHistory || [];
   
+  console.log('[DEBUG] planChangedAt:', user.planChangedAt);
+  console.log('[DEBUG] readingHistory count:', readingHistory.length);
+  
   // プラン変更後の今日の占い回数をカウント
   const today = new Date().toISOString().split('T')[0];
   const usedAfterPlanChange = readingHistory.filter(reading => {
     const readingDate = new Date(reading.timestamp);
     const readingDateStr = readingDate.toISOString().split('T')[0];
-    return readingDateStr === today && readingDate >= planChangedAt;
+    const isToday = readingDateStr === today;
+    const isAfterPlanChange = readingDate >= planChangedAt;
+    
+    console.log('[DEBUG] Reading:', {
+      timestamp: reading.timestamp,
+      isToday,
+      isAfterPlanChange,
+      included: isToday && isAfterPlanChange
+    });
+    
+    return isToday && isAfterPlanChange;
   }).length;
+  
+  console.log('[DEBUG] usedAfterPlanChange:', usedAfterPlanChange);
   
   return usedAfterPlanChange;
 }
