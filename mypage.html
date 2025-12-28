@@ -14,7 +14,7 @@
 
     body {
       font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
-      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100% );
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
       min-height: 100vh;
       padding: 20px;
     }
@@ -63,18 +63,18 @@
       gap: 8px;
     }
 
-    .plan-card {
+    .plan-info {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 12px;
-      padding: 20px;
       color: white;
-      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
     }
 
     .plan-name {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: bold;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
     }
 
     .plan-detail {
@@ -82,49 +82,34 @@
       opacity: 0.9;
     }
 
-    .subscription-period {
-      font-size: 14px;
-      color: #666;
-      margin-top: 10px;
-    }
-
     .usage-info {
       display: flex;
       justify-content: space-between;
-      padding: 12px 0;
-      border-bottom: 1px solid #eee;
-    }
-
-    .usage-info:last-child {
-      border-bottom: none;
+      padding: 12px;
+      background: #f8f9ff;
+      border-radius: 8px;
+      margin-bottom: 8px;
     }
 
     .usage-label {
+      font-size: 14px;
       color: #666;
-      font-size: 15px;
     }
 
     .usage-value {
-      color: #667eea;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
+      color: #667eea;
     }
 
     .history-item {
+      padding: 12px;
+      background: #f8f9ff;
+      border-radius: 8px;
+      margin-bottom: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 15px;
-      border-bottom: 1px solid #eee;
-      transition: background 0.2s;
-    }
-
-    .history-item:hover {
-      background: #f8f9fa;
-    }
-
-    .history-item:last-child {
-      border-bottom: none;
     }
 
     .history-left {
@@ -132,20 +117,19 @@
     }
 
     .history-date {
-      font-size: 13px;
+      font-size: 12px;
       color: #999;
-      margin-bottom: 5px;
-    }
-
-    .history-type {
-      font-size: 16px;
-      color: #333;
-      font-weight: bold;
       margin-bottom: 3px;
     }
 
+    .history-type {
+      font-size: 15px;
+      color: #333;
+      font-weight: bold;
+    }
+
     .history-theme {
-      font-size: 14px;
+      font-size: 13px;
       color: #666;
     }
 
@@ -153,28 +137,26 @@
       font-size: 24px;
     }
 
+    .loading {
+      text-align: center;
+      color: white;
+      padding: 40px;
+      font-size: 18px;
+    }
+
     .empty-message {
       text-align: center;
       color: #999;
-      padding: 30px;
+      padding: 20px;
       font-size: 14px;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 50px;
-      font-size: 16px;
-      color: #667eea;
-    }
-
-    #content {
-      display: none;
     }
 
     .footer {
       text-align: center;
-      padding: 20px;
-      color: #999;
+      color: white;
+      margin-top: 20px;
+      padding: 15px;
+      opacity: 0.8;
       font-size: 14px;
     }
   </style>
@@ -185,22 +167,22 @@
       読み込み中...
     </div>
 
-    <div id="content">
+    <div id="content" style="display: none;">
       <div class="header">
         <h1>📊 マイページ</h1>
-        <div id="user-name" class="user-name">👤 ゲストさん</div>
+        <div class="user-name" id="user-name"></div>
       </div>
 
       <div class="section">
         <div class="section-title">👑 現在のプラン</div>
-        <div class="plan-card">
-          <div id="plan-name" class="plan-name">👑 フリープラン</div>
-          <div id="plan-detail" class="plan-detail">無料プラン</div>
+        <div class="plan-info">
+          <div class="plan-name" id="plan-name"></div>
+          <div class="plan-detail" id="plan-detail"></div>
         </div>
-        <div id="subscription-period" class="subscription-period"></div>
+        <div id="subscription-period" style="margin-top: 10px; font-size: 13px; color: #666;"></div>
       </div>
 
-      <div class="section">
+      <div class="section" id="usage-section">
         <div class="section-title">📈 利用状況</div>
         <div id="usage-info"></div>
       </div>
@@ -289,7 +271,7 @@
       
       // 利用状況
       const usageInfo = document.getElementById('usage-info');
-      const usedToday = data.usageCount?.count || 0;
+      const usedToday = data.usageCount?.today || 0;
       const remaining = planInfo.dailyLimit - usedToday;
       
       // 単品購入または残り回数が0の場合は「都度購入」と表示
