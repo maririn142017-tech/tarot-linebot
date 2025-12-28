@@ -780,10 +780,10 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     ]);
     
     // フォローアップメッセージを送信（単品購入ユーザーへの誘導）
-    const user = await db.getOrCreateUser(userId);
-    console.log('User plan for follow-up message:', user.plan);
+    const userInfo = await db.getOrCreateUser(userId);
+    console.log('User plan for follow-up message:', userInfo.plan);
     
-    if (user.plan === 'single') {
+    if (userInfo.plan === 'single') {
       console.log('Scheduling follow-up message for single purchase user');
       // 少し待ってからフォローアップメッセージを送信
       // setTimeoutをPromiseでラップして待機
