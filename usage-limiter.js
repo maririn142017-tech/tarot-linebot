@@ -83,9 +83,11 @@ function generateLimitMessage(user, plan) {
   }
   
   if (user.plan === 'standard' || user.plan === 'premium') {
-    return `本日の占い回数（2回）を使い切りました😊
+    return `本日の占い回数（２回）を使い切りました😊
 
-また明日お待ちしています✨
+もっと占いたい場合は、単品購入（380円）で追加の占いができます💫
+
+下のメニューから「決済」をタップしてね✨
 
 ありがとうございます💕`;
   }
