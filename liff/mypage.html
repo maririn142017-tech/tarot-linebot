@@ -257,10 +257,23 @@
             <span class="usage-value">${data.freeReadingUsed ? '使用済み' : '未使用'}</span>
           </div>
         `;
+      } else if (data.plan === 'single') {
+        // 単品購入の場合
+        usageInfo.innerHTML = `
+          <div class="usage-info">
+            <span class="usage-label">今日の残り回数</span>
+            <span class="usage-value">都度購入</span>
+          </div>
+          <div class="usage-info">
+            <span class="usage-label">今日の利用回数</span>
+            <span class="usage-value">${data.usageCount.today}回</span>
+          </div>
+        `;
       } else {
+        // サブスクリプション（ライト・スタンダード・プレミアム）の場合
         // プラン変更後の使用回数を使用
         const usedCount = data.usageCountAfterPlanChange !== undefined ? data.usageCountAfterPlanChange : data.usageCount.today;
-        const remaining = planInfo.dailyLimit - usedCount;
+        const remaining = Math.max(0, planInfo.dailyLimit - usedCount); // マイナスにならないように
         usageInfo.innerHTML = `
           <div class="usage-info">
             <span class="usage-label">今日の残り回数</span>
