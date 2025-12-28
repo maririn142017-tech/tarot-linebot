@@ -746,17 +746,6 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     
     const resultMessage = `🔮 ${profile.displayName}さんの占い結果 🔮\n\n【${theme}】\n\n${aiReading}`;
     
-    // 使用回数を記録
-    usageLimiter.afterReading(userId);
-    
-    // 占い履歴に追加
-    db.addReadingHistory(userId, {
-      type: type,
-      theme: theme,
-      cards: cards,
-      result: resultMessage
-    });
-    
     // カード画像のURLを作成（逆位置対応）
     const baseUrl = 'https://tarot-linebot.onrender.com';
     const cardImages = await Promise.all(cards.map(async (card) => {
@@ -800,6 +789,17 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
         text: resultMessage
       }
     ]);
+    
+    // 送信成功後に使用回数を記録
+    usageLimiter.afterReading(userId);
+    
+    // 占い履歴に追加
+    db.addReadingHistory(userId, {
+      type: type,
+      theme: theme,
+      cards: cards,
+      result: resultMessage
+    });
     
     // フォローアップメッセージを送信（単品購入ユーザーへの誘導）
     const userInfo = await db.getOrCreateUser(userId);
