@@ -166,7 +166,7 @@ console.log('=====================');
             db.updateUser(userId, {
               singlePurchaseCount: currentCount + 1
             });
-            console.log(`Subscription user purchased single reading: userId=${userId}, singlePurchaseCount=${currentCount + 1}`);
+            console.log(`Subscription user purchased single reading: userId=${userId}, plan unchanged, singlePurchaseCount=${currentCount + 1}`);
           } else {
             // 無料または単品購入ユーザーの場合、プランを変更
             const updates = {
@@ -214,7 +214,8 @@ console.log('=====================');
           db.updateUser(userId, updates);
         }
         
-        console.log(`User plan updated: userId=${userId}, plan=${planType}`);
+        const updatedUser = db.getOrCreateUser(userId);
+        console.log(`User plan updated: userId=${userId}, actualPlan=${updatedUser.plan}, purchasedPlanType=${planType}, singlePurchaseCount=${updatedUser.singlePurchaseCount || 0}`);
         
         // 決済完了メッセージを送信
         const planNames = {
