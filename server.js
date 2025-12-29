@@ -770,16 +770,8 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       return res.json({ success: true });
     }
     
-    // 待機メッセージを送信
-    try {
-      await client.pushMessage(userId, {
-        type: 'text',
-        text: 'カードを引いてるから、少し待っててね✨\n詳しい解釈を作ってるよ💫'
-      });
-    } catch (error) {
-      console.error('Failed to send waiting message:', error);
-      // 待機メッセージが送れなくても占い処理は続行
-    }
+    // 待機メッセージを削除（LINE APIリクエスト数削減のため）
+    // 占い結果のみを送信することで、429エラーの発生頻度を下げる
     
     // カードを引く
     const cards = drawCards(3);
