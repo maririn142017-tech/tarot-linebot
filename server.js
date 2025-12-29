@@ -455,7 +455,7 @@ async function handleEvent(event, lineClient = client) {
   
   // メニュー選択の処理
   if (userMessage === '一般占い' || userMessage === '恋愛占い') {
-    return handleReadingMenu(event, userId, profile.displayName, userMessage);
+    return handleReadingMenu(event, userId, profile.displayName, userMessage, lineClient);
   }
   
   if (userMessage === 'ルカ占い') {
@@ -504,7 +504,7 @@ async function handleEvent(event, lineClient = client) {
 }
 
 // 占いメニュー（LIFFページへ誘導）
-async function handleReadingMenu(event, userId, displayName, type) {
+async function handleReadingMenu(event, userId, displayName, type, lineClient) {
   // 利用制限チェック
   const limitCheck = usageLimiter.checkUsageLimit(userId);
   
