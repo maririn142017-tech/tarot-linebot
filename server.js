@@ -30,6 +30,12 @@ const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
+// テストチャネル用の設定
+const testConfig = {
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN_TEST,
+  channelSecret: process.env.LINE_CHANNEL_SECRET_TEST,
+};
+
 // Stripe Price IDs（テスト環境）
 const STRIPE_PRICES = {
   single: 'price_1Shf37R7a9cchBiybxEXoWiL',      // 単品購入 380円
@@ -39,6 +45,7 @@ const STRIPE_PRICES = {
 };
 
 const client = new line.Client(config);
+const testClient = new line.Client(testConfig);
 
 // OpenAI APIクライアント
 const openai = new OpenAI();
@@ -249,7 +256,7 @@ console.log('=====================');
             text: `🎉 お支払いが完了しました！\n\n✨ ${planNames[planType] || planType}にアップグレードされました\n\nマイページで詳細を確認できます 📊`
           };
 
-          await client.pushMessage(userId, message);
+          await lineClient.pushMessage(userId, message);
           console.log(`✅ Payment notification sent to ${userId}`);
         } catch (notificationError) {
           // LINE通知の送信に失敗しても、webhook処理は成功とする
@@ -300,7 +307,7 @@ console.log('=====================');
         });
         
         // キャンセル通知をLINEに送信
-        await client.pushMessage(cancelUserId, {
+        await lineClient.pushMessage(cancelUserId, {
           type: 'text',
           text: 'サブスクリプションがキャンセルされました。\n\nいつでもまたご利用いただけます！🙏'
         });
@@ -321,7 +328,7 @@ console.log('=====================');
 app.post('/webhook', line.middleware(config), async (req, res) => {
   try {
     const events = req.body.events;
-    await Promise.all(events.map(handleEvent));
+    await Promise.all(events.map(event => handleEvent(event, client)));
     res.status(200).end();
   } catch (err) {
     console.error('Webhook error:', err);
@@ -329,8 +336,20 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   }
 });
 
+// テストチャネル用のWebhookエンドポイント
+app.post('/webhook-test', line.middleware(testConfig), async (req, res) => {
+  try {
+    const events = req.body.events;
+    await Promise.all(events.map(event => handleEvent(event, testClient)));
+    res.status(200).end();
+  } catch (err) {
+    console.error('Webhook error (test):', err);
+    res.status(500).end();
+  }
+});
+
 // イベントハンドラー
-async function handleEvent(event) {
+async function handleEvent(event, lineClient = client) {
   if (event.type !== 'message' || event.message.type !== 'text') {
     return null;
   }
@@ -341,7 +360,7 @@ async function handleEvent(event) {
   // ユーザー情報を取得または作成
   let profile;
   try {
-    profile = await client.getProfile(userId);
+    profile = await lineClient.getProfile(userId);
   } catch (error) {
     console.error('プロフィール取得エラー:', error);
     profile = { displayName: 'ゲスト' };
@@ -352,7 +371,7 @@ async function handleEvent(event) {
   // サポート会話中の処理
   if (support.isInSupport(userId)) {
     const supportResponse = await support.handleSupportMessage(userId, userMessage, profile.displayName);
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: supportResponse
     });
@@ -368,7 +387,7 @@ async function handleEvent(event) {
 
 初回は無料で3カード占いができるから、下のメニューから「一般占い」または「恋愛占い」を選んでね🎶`;
     
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: greeting
     });
@@ -408,7 +427,7 @@ async function handleEvent(event) {
   
   if (userMessage === 'サポート') {
     const supportGreeting = support.startSupport(userId, profile.displayName);
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: supportGreeting
     });
@@ -422,14 +441,14 @@ async function handleEvent(event) {
       profile.displayName
     );
     
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: result.response
     });
   }
   
   // その他のメッセージ
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: `${profile.displayName}さん、こんにちは🌈\n\n下のメニューから選んでね✨`
   });
@@ -441,7 +460,7 @@ async function handleReadingMenu(event, userId, displayName, type) {
   const limitCheck = usageLimiter.checkUsageLimit(userId);
   
   if (!limitCheck.canUse) {
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: limitCheck.message
     });
@@ -456,7 +475,7 @@ ${typeName}のテーマ選択ページを開きます✨
 
 今しばらくお待ちください😊💕`;
   
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: message
   });
@@ -468,7 +487,7 @@ async function handleGeneralReadingWithTheme(event, userId, displayName, theme) 
   const limitCheck = usageLimiter.checkUsageLimit(userId);
   
   if (!limitCheck.canUse) {
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: limitCheck.message
     });
@@ -503,7 +522,7 @@ async function handleGeneralReadingWithTheme(event, userId, displayName, theme) 
     result: resultMessage
   });
   
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: resultMessage
   });
@@ -515,7 +534,7 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
   const limitCheck = usageLimiter.checkUsageLimit(userId);
   
   if (!limitCheck.canUse) {
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: limitCheck.message
     });
@@ -550,7 +569,7 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
     result: resultMessage
   });
   
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: resultMessage
   });
@@ -560,7 +579,7 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
 async function handleLukaReading(event, userId, displayName) {
   // ルカが使えるかチェック
   if (!usageLimiter.canUseLuka(userId)) {
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: `ルカ占いは有料会員限定です💕
 
@@ -585,7 +604,7 @@ async function handleLukaReading(event, userId, displayName) {
   const limitCheck = usageLimiter.checkUsageLimit(userId);
   
   if (!limitCheck.canUse) {
-    return client.replyMessage(event.replyToken, {
+    return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: limitCheck.message
     });
@@ -594,7 +613,7 @@ async function handleLukaReading(event, userId, displayName) {
   // 会話を開始
   const greeting = lukaConversation.startConversation(userId, displayName);
   
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: greeting
   });
@@ -610,7 +629,7 @@ async function handleCardGuide(event, userId) {
 
 今しばらくお待ちください😊💕`;
   
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: guideMessage
   });
@@ -649,7 +668,7 @@ async function handleMyPage(event, userId, displayName) {
   
   myPageMessage += `\n✨ いつもありがとうございます 💕`;
   
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: myPageMessage
   });
@@ -695,7 +714,7 @@ async function handlePayment(event, userId, displayName) {
 ※決済機能は準備中です
 ※近日公開予定です✨`;
   
-  return client.replyMessage(event.replyToken, {
+  return lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: paymentMessage
   });
@@ -747,7 +766,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     // ユーザー情報を取得
     let profile;
     try {
-      profile = await client.getProfile(userId);
+      profile = await lineClient.getProfile(userId);
     } catch (error) {
       console.error('プロフィール取得エラー:', error);
       profile = { displayName: 'ゲスト' };
@@ -760,7 +779,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     
     if (!limitCheck.canUse) {
       try {
-        await client.pushMessage(userId, {
+        await lineClient.pushMessage(userId, {
           type: 'text',
           text: limitCheck.message
         });
@@ -828,7 +847,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     // メッセージを送信（画像 + テキスト）
     // 429エラーが出ても占い処理自体は成功させる
     try {
-      await client.pushMessage(userId, [
+      await lineClient.pushMessage(userId, [
         ...cardImages,
         {
           type: 'text',
@@ -866,7 +885,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
         await new Promise(resolve => setTimeout(resolve, 2000));
         try {
           console.log('Sending follow-up message to:', userId);
-          await client.pushMessage(userId, {
+          await lineClient.pushMessage(userId, {
             type: 'text',
             text: `ルカの占い、どうだった？🔮💕
 
@@ -988,7 +1007,7 @@ app.get('/payment-success', async (req, res) => {
       premium: 'プレミアム会員'
     };
     
-    await client.pushMessage(userId, {
+    await lineClient.pushMessage(userId, {
       type: 'text',
       text: `🎉 お支払いが完了しました！\n\n【${planNames[planType]}】\nご購入ありがとうございます💕\n\n✨ ルカとの深い会話\n✨ 1000文字の詳細鑑定\n✨ 毎日占える安心感\n\n下のメニューから「ルカ占い」を選んでね🔮💖`
     });
