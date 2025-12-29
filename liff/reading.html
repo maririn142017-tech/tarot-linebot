@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>占い選択 | ルナのタロット占い</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .container {
+      max-width: 500px;
+      width: 100%;
+    }
+    
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      margin-bottom: 20px;
+    }
+    
+    .option {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 15px;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      width: 100%;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .option:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    
+    .option:active {
+      transform: translateY(0);
+    }
+    
+    .option-icon {
+      font-size: 24px;
+      margin-right: 15px;
+    }
+    
+    .option-text {
+      flex: 1;
+    }
+    
+    .option-arrow {
+      font-size: 20px;
+    }
+    
+    .description {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+    
+    .loading {
+      display: none;
+      text-align: center;
+      color: white;
+      font-size: 18px;
+      margin-top: 20px;
+    }
+    
+    .loading.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔮 占い選択</h1>
+      <p>どちらの占いをご希望ですか？</p>
+    </div>
+    
+    <div class="card">
+      <button class="option" onclick="selectReading('general')">
+        <span class="option-icon">✨</span>
+        <span class="option-text">一般占い</span>
+        <span class="option-arrow">→</span>
+      </button>
+      
+      <button class="option" onclick="selectReading('love')">
+        <span class="option-icon">💕</span>
+        <span class="option-text">恋愛占い</span>
+        <span class="option-arrow">→</span>
+      </button>
+      
+      <div class="description">
+        <strong>✨ 一般占い</strong><br>
+        仕事、人間関係、未来のことなど、あらゆるテーマについて占います。<br><br>
+        <strong>💕 恋愛占い</strong><br>
+        恋愛、結婚、パートナーシップに特化した占いです。
+      </div>
+    </div>
+    
+    <div class="loading" id="loading">
+      読み込み中...
+    </div>
+  </div>
+  
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    const liffId = '2008796438'; // テストチャネルの占い選択ページLIFF ID
+    
+    // LIFF初期化
+    liff.init({ liffId: liffId })
+      .then(() => {
+        console.log('LIFF initialized');
+        if (!liff.isLoggedIn()) {
+          liff.login();
+        }
+      })
+      .catch((err) => {
+        console.error('LIFF initialization failed', err);
+        alert('エラーが発生しました。もう一度お試しください。');
+      });
+    
+    function selectReading(type) {
+      const loading = document.getElementById('loading');
+      loading.classList.add('active');
+      
+      let message = '';
+      if (type === 'general') {
+        message = '一般占い';
+      } else if (type === 'love') {
+        message = '恋愛占い';
+      }
+      
+      // LINEトークにメッセージを送信
+      liff.sendMessages([{
+        type: 'text',
+        text: message
+      }])
+      .then(() => {
+        console.log('Message sent');
+        liff.closeWindow();
+      })
+      .catch((err) => {
+        console.error('Error sending message', err);
+        loading.classList.remove('active');
+        alert('メッセージの送信に失敗しました。もう一度お試しください。');
+      });
+    }
+  </script>
+</body>
+</html>
