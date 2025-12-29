@@ -36,6 +36,20 @@ const testConfig = {
   channelSecret: process.env.LINE_CHANNEL_SECRET_TEST,
 };
 
+// 環境変数のデバッグログ（起動時に確認）
+console.log('=== Environment Variables Check ===');
+console.log('LINE_CHANNEL_ACCESS_TOKEN:', config.channelAccessToken ? 'exists (length: ' + config.channelAccessToken.length + ')' : 'MISSING');
+console.log('LINE_CHANNEL_SECRET:', config.channelSecret ? 'exists (length: ' + config.channelSecret.length + ')' : 'MISSING');
+console.log('LINE_CHANNEL_ACCESS_TOKEN_TEST:', testConfig.channelAccessToken ? 'exists (length: ' + testConfig.channelAccessToken.length + ')' : 'MISSING');
+console.log('LINE_CHANNEL_SECRET_TEST:', testConfig.channelSecret ? 'exists (length: ' + testConfig.channelSecret.length + ')' : 'MISSING');
+console.log('===================================');
+
+// テストチャネルの環境変数が設定されていない場合、エラーを出力
+if (!testConfig.channelAccessToken || !testConfig.channelSecret) {
+  console.error('❌ ERROR: Test channel environment variables are not set properly!');
+  console.error('Please set LINE_CHANNEL_ACCESS_TOKEN_TEST and LINE_CHANNEL_SECRET_TEST in Render environment variables.');
+}
+
 // Stripe Price IDs（テスト環境）
 const STRIPE_PRICES = {
   single: 'price_1Shf37R7a9cchBiybxEXoWiL',      // 単品購入 380円
