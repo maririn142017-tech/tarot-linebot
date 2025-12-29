@@ -228,6 +228,10 @@
         const response = await fetch(`/api/user-data?userId=${userId}`);
         const data = await response.json();
         
+        // デバッグ：取得したデータをログ出力
+        console.log('User data loaded:', data);
+        console.log('User plan:', data.plan);
+        
         displayUserData(data);
         
         document.getElementById('loading').style.display = 'none';
@@ -337,7 +341,18 @@
           dailyLimit: 2
         }
       };
-      return plans[plan] || plans.free;
+      
+      // プランが見つからない場合はデバッグ情報をログ出力
+      if (!plans[plan]) {
+        console.error('Unknown plan type:', plan);
+        return {
+          name: '不明なプラン',
+          detail: `プラン情報が取得できません (${plan || 'undefined'})`,
+          dailyLimit: 0
+        };
+      }
+      
+      return plans[plan];
     }
 
     // 履歴アイテムを作成

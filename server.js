@@ -759,18 +759,27 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     const limitCheck = usageLimiter.checkUsageLimit(userId);
     
     if (!limitCheck.canUse) {
-      await client.pushMessage(userId, {
-        type: 'text',
-        text: limitCheck.message
-      });
+      try {
+        await client.pushMessage(userId, {
+          type: 'text',
+          text: limitCheck.message
+        });
+      } catch (error) {
+        console.error('Failed to send limit message:', error);
+      }
       return res.json({ success: true });
     }
     
     // 待機メッセージを送信
-    await client.pushMessage(userId, {
-      type: 'text',
-      text: 'カードを引いてるから、少し待っててね✨\n詳しい解釈を作ってるよ💫'
-    });
+    try {
+      await client.pushMessage(userId, {
+        type: 'text',
+        text: 'カードを引いてるから、少し待っててね✨\n詳しい解釈を作ってるよ💫'
+      });
+    } catch (error) {
+      console.error('Failed to send waiting message:', error);
+      // 待機メッセージが送れなくても占い処理は続行
+    }
     
     // カードを引く
     const cards = drawCards(3);
@@ -825,24 +834,33 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     }));
     
     // メッセージを送信（画像 + テキスト）
-    await client.pushMessage(userId, [
-      ...cardImages,
-      {
-        type: 'text',
-        text: resultMessage
-      }
-    ]);
+    // 429エラーが出ても占い処理自体は成功させる
+    try {
+      await client.pushMessage(userId, [
+        ...cardImages,
+        {
+          type: 'text',
+          text: resultMessage
+        }
+      ]);
+      console.log('Reading result sent successfully');
+    } catch (error) {
+      console.error('Failed to send reading result (but continuing processing):', error);
+      // 429エラーなどで送信失敗しても、使用回数の記録と履歴保存は続行
+    }
     
-    // 送信成功後に使用回数を記録
+    // 使用回数を記録（送信成功・失敗に関わらず必ず実行）
     usageLimiter.afterReading(userId);
+    console.log('Usage count recorded');
     
-    // 占い履歴に追加
+    // 占い履歴に追加（送信成功・失敗に関わらず必ず実行）
     db.addReadingHistory(userId, {
       type: type,
       theme: theme,
       cards: cards,
       result: resultMessage
     });
+    console.log('Reading history saved');
     
     // フォローアップメッセージを送信（単品購入ユーザーへの誘導）
     const userInfo = await db.getOrCreateUser(userId);
