@@ -433,6 +433,9 @@ async function handleEvent(event, lineClient = client) {
 
 初回は無料で3カード占いができるから、下のメニューから「一般占い」または「恋愛占い」を選んでね🎶`;
     
+    // 初回挨拶を送信したら、次回からは表示しないようにフラグを立てる
+    db.updateUser(userId, { greetingSent: true });
+    
     return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: greeting
