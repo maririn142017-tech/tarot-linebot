@@ -166,7 +166,7 @@
         alert('エラーが発生しました。もう一度お試しください。');
       });
     
-    function selectReading(type) {
+    async function selectReading(type) {
       const loading = document.getElementById('loading');
       loading.classList.add('active');
       
@@ -177,20 +177,35 @@
         message = '恋愛占い';
       }
       
-      // LINEトークにメッセージを送信
-      liff.sendMessages([{
-        type: 'text',
-        text: message
-      }])
-      .then(() => {
-        console.log('Message sent');
-        liff.closeWindow();
-      })
-      .catch((err) => {
+      try {
+        // ユーザーIDを取得
+        const profile = await liff.getProfile();
+        const userId = profile.userId;
+        
+        // サーバーにリクエストを送信
+        const response = await fetch('https://tarot-linebot.onrender.com/api/send-reading-request', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: userId,
+            readingType: type,
+            message: message
+          })
+        });
+        
+        if (response.ok) {
+          console.log('Message sent via server');
+          liff.closeWindow();
+        } else {
+          throw new Error('Server response not OK');
+        }
+      } catch (err) {
         console.error('Error sending message', err);
         loading.classList.remove('active');
         alert('メッセージの送信に失敗しました。もう一度お試しください。');
-      });
+      }
     }
   </script>
 </body>

@@ -1150,6 +1150,37 @@ app.use('/liff', express.static('liff'));
 // カード画像用の静的ファイル配信
 app.use('/cards', express.static('public/cards'));
 
+// LIFFからの占いリクエストを処理するAPIエンドポイント
+app.post('/api/send-reading-request', async (req, res) => {
+  try {
+    const { userId, readingType, message } = req.body;
+    
+    if (!userId || !message) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    
+    // テストチャネルのMessaging APIクライアントを使用
+    const testClient = new line.messagingApi.MessagingApiClient({
+      channelAccessToken: testConfig.channelAccessToken
+    });
+    
+    // ユーザーにメッセージを送信
+    await testClient.pushMessage({
+      to: userId,
+      messages: [{
+        type: 'text',
+        text: `${message}を選択しました。\nどのようなことを占いたいですか？`
+      }]
+    });
+    
+    console.log(`Reading request sent to user ${userId}: ${message}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error sending reading request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ヘルスチェック
 app.get('/', (req, res) => {
   res.send('Tarot LINE Bot is running!');
