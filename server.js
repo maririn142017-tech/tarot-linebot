@@ -1159,18 +1159,10 @@ app.post('/api/send-reading-request', async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
     
-    // テストチャネルのMessaging APIクライアントを使用
-    const testClient = new line.messagingApi.MessagingApiClient({
-      channelAccessToken: testConfig.channelAccessToken
-    });
-    
-    // ユーザーにメッセージを送信
-    await testClient.pushMessage({
-      to: userId,
-      messages: [{
-        type: 'text',
-        text: `${message}を選択しました。\nどのようなことを占いたいですか？`
-      }]
+    // ユーザーにメッセージを送信（testClientを使用）
+    await testClient.pushMessage(userId, {
+      type: 'text',
+      text: `${message}を選択しました。\nどのようなことを占いたいですか？`
     });
     
     console.log(`Reading request sent to user ${userId}: ${message}`);
