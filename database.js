@@ -49,6 +49,7 @@ function getOrCreateUser(userId, displayName = null) {
       planChangedAt: new Date().toISOString(), // プラン変更時刻
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
+      greetingSent: false, // 挨拶送信済みフラグ
       freeReadingUsed: false, // 無料占い使用済みフラグ
       singlePurchaseCount: 0, // 単品購入回数（今日）
       processedEvents: [], // 処理済みのStripe webhookイベントID（重複処理を防ぐ）
