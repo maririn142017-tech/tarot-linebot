@@ -271,18 +271,27 @@
       
       // 利用状況
       const usageInfo = document.getElementById('usage-info');
-      const usedToday = data.usageCount?.today || 0;
-      const remaining = planInfo.dailyLimit - usedToday;
+      // プラン変更後の使用回数を使用（サブスクリプションの場合）
+      let usedToday;
+      if (data.plan === 'single' || data.plan === 'free') {
+        // 単品購入または無料の場合は通常の使用回数
+        usedToday = data.usageCount?.today || 0;
+      } else {
+        // サブスクリプションの場合はプラン変更後の使用回数
+        usedToday = data.usageCountAfterPlanChange || 0;
+      }
+      const singlePurchaseCount = data.singlePurchaseCount || 0;
+      const totalLimit = planInfo.dailyLimit + singlePurchaseCount;
+      const remaining = totalLimit - usedToday;
       
       // 残り回数の表示ロジック
       let remainingText;
-      if (data.plan === 'single') {
+      if (data.plan === 'free') {
+        // 無料プランの場合
+        remainingText = usedToday === 0 ? '1回（初回無料）' : '都度購入';
+      } else if (data.plan === 'single') {
         // 単品購入の場合: 使用済みかどうかで判定
-        if (usedToday === 0) {
-          remainingText = '1回';  // まだ使っていない
-        } else {
-          remainingText = '都度購入';  // 使用済み
-        }
+        remainingText = usedToday === 0 ? '1回' : '都度購入';
       } else if (remaining <= 0) {
         // サブスクリプションで使い切った場合
         remainingText = '都度購入';
