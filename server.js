@@ -232,13 +232,12 @@ console.log('=====================');
               autoRenew: true,
               stripeSubscriptionId: session.subscription,
               notificationSent: false
-            }
+            },
+            // プラン変更時刻を記録（必ず更新）
+            planChangedAt: now.toISOString(),
+            // 単品購入回数をリセット
+            singlePurchaseCount: 0
           };
-          
-          // planChangedAtが設定されていない場合のみ記録
-          if (!user.planChangedAt) {
-            updates.planChangedAt = now.toISOString();
-          }
           
           db.updateUser(userId, updates);
         }
@@ -448,6 +447,32 @@ async function handleEvent(event, lineClient = client) {
       type: 'text',
       text: greeting
     });
+  }
+  
+  // 2回目以降の挨拶（LIFFメッセージではない通常メッセージの場合のみ）
+  if (!lukaConversation.isInConversation(userId) && 
+      !userMessage.startsWith('一般占い：') && 
+      !userMessage.startsWith('恋愛占い：') &&
+      userMessage.length < 20) { // 短いメッセージのみ挨拶を返す
+    const user = db.getOrCreateUser(userId);
+    const greetingSent = user.greetingSent === undefined ? false : user.greetingSent;
+    
+    // 挨拶済みで、簡単な挨拶メッセージの場合
+    const simpleGreetings = ['こんにちは', 'こんばんは', 'おはよう', 'やあ', 'よろしく'];
+    const isSimpleGreeting = simpleGreetings.some(g => userMessage.includes(g));
+    
+    if (greetingSent && isSimpleGreeting) {
+      const welcomeBack = `おかえり${profile.displayName}さん💕
+
+今日はどんなことを占う？🔮
+
+下のメニューから「一般占い」または「恋愛占い」を選んでね✨`;
+      
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: welcomeBack
+      });
+    }
   }
   
   // LIFFから送信されたメッセージの処理
@@ -930,11 +955,39 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     });
     console.log('Reading history saved');
     
-    // フォローアップメッセージを送信（単品購入ユーザーへの誘導）
+    // フォローアップメッセージを送信（無料・単品購入ユーザーへの誘導）
     const userInfo = await db.getOrCreateUser(userId);
     console.log('User plan for follow-up message:', userInfo.plan);
     
-    if (userInfo.plan === 'single') {
+    if (userInfo.plan === 'free') {
+      console.log('Scheduling follow-up message for free user');
+      // 無料鑑定後の購入促進メッセージ
+      (async () => {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+          console.log('Sending follow-up message to free user:', userId);
+          await client.pushMessage(userId, {
+            type: 'text',
+            text: `ルカの占い、どうだった？🔮💕
+
+もっと詳しく占いたい場合は：
+
+💫 単品購入：380円/回
+　→ 何回でもOK！ルカとの会話あり
+
+👑 月額会員：
+　・ライト：3,000円/月（1日1回）
+　・スタンダード：5,000円/月（1日2回）
+　・プレミアム：9,800円/3ヶ月（1日2回）
+
+下のメニューから「決済」をタップしてね🎶`
+          });
+          console.log('Follow-up message sent successfully to free user');
+        } catch (error) {
+          console.error('Failed to send follow-up message to free user:', error);
+        }
+      })();
+    } else if (userInfo.plan === 'single') {
       console.log('Scheduling follow-up message for single purchase user');
       // 少し待ってからフォローアップメッセージを送信
       // setTimeoutをPromiseでラップして待機
