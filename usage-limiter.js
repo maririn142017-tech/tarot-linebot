@@ -106,8 +106,10 @@ function canUseLuka(userId) {
 // 初回ユーザーかチェック
 function isFirstTimeUser(userId) {
   const user = db.getOrCreateUser(userId);
+  // greetingSentがundefinedの場合はfalseとして扱う(既存ユーザー対応)
+  const greetingSent = user.greetingSent === undefined ? false : user.greetingSent;
   // greetingSentフラグが立っていない、かつ無料プランで、無料占い未使用の場合のみ初回ユーザーとする
-  return !user.greetingSent && !user.freeReadingUsed && user.plan === 'free';
+  return !greetingSent && !user.freeReadingUsed && user.plan === 'free';
 }
 
 // 占い実行後の処理
