@@ -414,6 +414,14 @@ async function handleEvent(event, lineClient = client) {
   
   const user = db.getOrCreateUser(userId, profile.displayName);
   
+  // デバッグログ
+  console.log(`User ${userId} info:`, {
+    greetingSent: user.greetingSent,
+    freeReadingUsed: user.freeReadingUsed,
+    plan: user.plan,
+    isFirstTime: usageLimiter.isFirstTimeUser(userId)
+  });
+  
   // サポート会話中の処理
   if (support.isInSupport(userId)) {
     const supportResponse = await support.handleSupportMessage(userId, userMessage, profile.displayName);
