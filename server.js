@@ -270,7 +270,7 @@ console.log('=====================');
             text: `🎉 お支払いが完了しました！\n\n✨ ${planNames[planType] || planType}にアップグレードされました\n\nマイページで詳細を確認できます 📊`
           };
 
-          await lineClient.pushMessage(userId, message);
+          await client.pushMessage(userId, message);
           console.log(`✅ Payment notification sent to ${userId}`);
         } catch (notificationError) {
           // LINE通知の送信に失敗しても、webhook処理は成功とする
@@ -321,7 +321,7 @@ console.log('=====================');
         });
         
         // キャンセル通知をLINEに送信
-        await lineClient.pushMessage(cancelUserId, {
+        await client.pushMessage(cancelUserId, {
           type: 'text',
           text: 'サブスクリプションがキャンセルされました。\n\nいつでもまたご利用いただけます！🙏'
         });
@@ -433,6 +433,9 @@ async function handleEvent(event, lineClient = client) {
   
   // 初回ユーザーの挨拶
   if (usageLimiter.isFirstTimeUser(userId) && !lukaConversation.isInConversation(userId)) {
+    // 挨拶を送信する前にフラグを立てる（次回からは表示しない）
+    db.updateUser(userId, { greetingSent: true });
+    
     const greeting = `初めまして${profile.displayName}さん💕
 
 ルカに会いに来てくれてありがとう✨
@@ -440,9 +443,6 @@ async function handleEvent(event, lineClient = client) {
 ルカは78枚のタロットカードであなたの未来を占うよ🔮
 
 初回は無料で3カード占いができるから、下のメニューから「一般占い」または「恋愛占い」を選んでね🎶`;
-    
-    // 初回挨拶を送信したら、次回からは表示しないようにフラグを立てる
-    db.updateUser(userId, { greetingSent: true });
     
     return lineClient.replyMessage(event.replyToken, {
       type: 'text',
@@ -823,7 +823,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     // ユーザー情報を取得
     let profile;
     try {
-      profile = await lineClient.getProfile(userId);
+      profile = await client.getProfile(userId);
     } catch (error) {
       console.error('プロフィール取得エラー:', error);
       profile = { displayName: 'ゲスト' };
@@ -836,7 +836,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     
     if (!limitCheck.canUse) {
       try {
-        await lineClient.pushMessage(userId, {
+        await client.pushMessage(userId, {
           type: 'text',
           text: limitCheck.message
         });
@@ -904,7 +904,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     // メッセージを送信（画像 + テキスト）
     // 429エラーが出ても占い処理自体は成功させる
     try {
-      await lineClient.pushMessage(userId, [
+      await client.pushMessage(userId, [
         ...cardImages,
         {
           type: 'text',
@@ -942,7 +942,7 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
         await new Promise(resolve => setTimeout(resolve, 2000));
         try {
           console.log('Sending follow-up message to:', userId);
-          await lineClient.pushMessage(userId, {
+          await client.pushMessage(userId, {
             type: 'text',
             text: `ルカの占い、どうだった？🔮💕
 
@@ -1064,7 +1064,7 @@ app.get('/payment-success', async (req, res) => {
       premium: 'プレミアム会員'
     };
     
-    await lineClient.pushMessage(userId, {
+    await client.pushMessage(userId, {
       type: 'text',
       text: `🎉 お支払いが完了しました！\n\n【${planNames[planType]}】\nご購入ありがとうございます💕\n\n✨ ルカとの深い会話\n✨ 1000文字の詳細鑑定\n✨ 毎日占える安心感\n\n下のメニューから「ルカ占い」を選んでね🔮💖`
     });
