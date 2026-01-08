@@ -394,6 +394,34 @@ app.post('/webhook-test', express.json(), async (req, res) => {
 
 // イベントハンドラー
 async function handleEvent(event, lineClient = client) {
+  // フォローイベント（友だち追加）の処理
+  if (event.type === 'follow') {
+    const userId = event.source.userId;
+    
+    // プロフィール取得
+    let profile;
+    try {
+      profile = await lineClient.getProfile(userId);
+    } catch (error) {
+      console.error('プロフィール取得エラー:', error);
+      profile = { displayName: 'ゲスト' };
+    }
+    
+    // ユーザー作成
+    await db.getOrCreateUser(userId, profile.displayName);
+    
+    // 初回挨拶メッセージ
+    const greeting = `こんにちは，${profile.displayName}さん🎴
+ルカはあなたの運命を導くタロット占い師です💫
+下のメニューから好きな項目を選んでね！
+さあ、運命のカードを下のメニューから引いてみよう！🔮`;
+    
+    return lineClient.replyMessage(event.replyToken, {
+      type: 'text',
+      text: greeting
+    });
+  }
+  
   if (event.type !== 'message' || event.message.type !== 'text') {
     return null;
   }
