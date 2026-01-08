@@ -23,37 +23,37 @@ async function initDB() {
     // usersテーブルの作成
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
-        user_id TEXT PRIMARY KEY,
-        display_name TEXT,
-        plan TEXT DEFAULT 'free',
-        plan_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        free_reading_used BOOLEAN DEFAULT FALSE,
-        single_purchase_count INTEGER DEFAULT 0,
-        greeting_sent BOOLEAN DEFAULT FALSE,
-        subscription JSONB,
-        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        "userId" TEXT PRIMARY KEY,
+        "displayName" TEXT,
+        "plan" TEXT DEFAULT 'free',
+        "planChangedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "freeReadingUsed" BOOLEAN DEFAULT FALSE,
+        "singlePurchaseCount" INTEGER DEFAULT 0,
+        "greetingSent" BOOLEAN DEFAULT FALSE,
+        "subscription" JSONB,
+        "lastActive" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // reading_historyテーブルの作成
     await pool.query(`
       CREATE TABLE IF NOT EXISTS reading_history (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT REFERENCES users(user_id) ON DELETE CASCADE,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        reading_type TEXT,
-        theme TEXT,
-        cards JSONB,
-        reading TEXT,
-        advice TEXT
+        "id" SERIAL PRIMARY KEY,
+        "userId" TEXT REFERENCES users("userId") ON DELETE CASCADE,
+        "timestamp" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "readingType" TEXT,
+        "theme" TEXT,
+        "cards" JSONB,
+        "reading" TEXT,
+        "advice" TEXT
       )
     `);
 
     // インデックスの作成
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_reading_history_user_id ON reading_history(user_id);
-      CREATE INDEX IF NOT EXISTS idx_reading_history_timestamp ON reading_history(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_reading_history_user_id ON reading_history("userId");
+      CREATE INDEX IF NOT EXISTS idx_reading_history_timestamp ON reading_history("timestamp");
     `);
 
     console.log('✅ データベーステーブルが初期化されました');
@@ -68,7 +68,7 @@ async function getOrCreateUser(userId, displayName = null) {
   try {
     // ユーザーが存在するか確認
     const result = await pool.query(
-      'SELECT * FROM users WHERE user_id = $1',
+      'SELECT * FROM users WHERE "userId" = $1',
       [userId]
     );
 
@@ -78,27 +78,27 @@ async function getOrCreateUser(userId, displayName = null) {
       
       // last_activeを更新
       await pool.query(
-        'UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE user_id = $1',
+        'UPDATE users SET "lastActive" = CURRENT_TIMESTAMP WHERE "userId" = $1',
         [userId]
       );
 
       // JSONBフィールドをパース
       return {
-        userId: user.user_id,
-        displayName: user.display_name,
+        userId: user.userId,
+        displayName: user.displayName,
         plan: user.plan,
-        planChangedAt: user.plan_changed_at,
-        createdAt: user.created_at,
-        freeReadingUsed: user.free_reading_used,
-        singlePurchaseCount: user.single_purchase_count,
-        greetingSent: user.greeting_sent,
+        planChangedAt: user.planChangedAt,
+        createdAt: user.createdAt,
+        freeReadingUsed: user.freeReadingUsed,
+        singlePurchaseCount: user.singlePurchaseCount,
+        greetingSent: user.greetingSent,
         subscription: user.subscription,
-        lastActive: user.last_active
+        lastActive: user.lastActive
       };
     } else {
       // 新規ユーザー
       const insertResult = await pool.query(
-        `INSERT INTO users (user_id, display_name, plan, plan_changed_at, free_reading_used, single_purchase_count, greeting_sent)
+        `INSERT INTO users ("userId", "displayName", "plan", "planChangedAt", "freeReadingUsed", "singlePurchaseCount", "greetingSent")
          VALUES ($1, $2, 'free', CURRENT_TIMESTAMP, FALSE, 0, FALSE)
          RETURNING *`,
         [userId, displayName]
@@ -106,16 +106,16 @@ async function getOrCreateUser(userId, displayName = null) {
 
       const newUser = insertResult.rows[0];
       return {
-        userId: newUser.user_id,
-        displayName: newUser.display_name,
+        userId: newUser.userId,
+        displayName: newUser.displayName,
         plan: newUser.plan,
-        planChangedAt: newUser.plan_changed_at,
-        createdAt: newUser.created_at,
-        freeReadingUsed: newUser.free_reading_used,
-        singlePurchaseCount: newUser.single_purchase_count,
-        greetingSent: newUser.greeting_sent,
+        planChangedAt: newUser.planChangedAt,
+        createdAt: newUser.createdAt,
+        freeReadingUsed: newUser.freeReadingUsed,
+        singlePurchaseCount: newUser.singlePurchaseCount,
+        greetingSent: newUser.greetingSent,
         subscription: newUser.subscription,
-        lastActive: newUser.last_active
+        lastActive: newUser.lastActive
       };
     }
   } catch (error) {
@@ -133,31 +133,31 @@ async function updateUser(userId, updates) {
 
     // 更新フィールドを構築
     if (updates.displayName !== undefined) {
-      fields.push(`display_name = $${paramIndex++}`);
+      fields.push(`"displayName" = $${paramIndex++}`);
       values.push(updates.displayName);
     }
     if (updates.plan !== undefined) {
-      fields.push(`plan = $${paramIndex++}`);
+      fields.push(`"plan" = $${paramIndex++}`);
       values.push(updates.plan);
     }
     if (updates.planChangedAt !== undefined) {
-      fields.push(`plan_changed_at = $${paramIndex++}`);
+      fields.push(`"planChangedAt" = $${paramIndex++}`);
       values.push(updates.planChangedAt);
     }
     if (updates.freeReadingUsed !== undefined) {
-      fields.push(`free_reading_used = $${paramIndex++}`);
+      fields.push(`"freeReadingUsed" = $${paramIndex++}`);
       values.push(updates.freeReadingUsed);
     }
     if (updates.singlePurchaseCount !== undefined) {
-      fields.push(`single_purchase_count = $${paramIndex++}`);
+      fields.push(`"singlePurchaseCount" = $${paramIndex++}`);
       values.push(updates.singlePurchaseCount);
     }
     if (updates.greetingSent !== undefined) {
-      fields.push(`greeting_sent = $${paramIndex++}`);
+      fields.push(`"greetingSent" = $${paramIndex++}`);
       values.push(updates.greetingSent);
     }
     if (updates.subscription !== undefined) {
-      fields.push(`subscription = $${paramIndex++}`);
+      fields.push(`"subscription" = $${paramIndex++}`);
       values.push(JSON.stringify(updates.subscription));
     }
 
@@ -166,7 +166,7 @@ async function updateUser(userId, updates) {
     }
 
     values.push(userId);
-    const query = `UPDATE users SET ${fields.join(', ')} WHERE user_id = $${paramIndex}`;
+    const query = `UPDATE users SET ${fields.join(', ')} WHERE "userId" = $${paramIndex}`;
     
     await pool.query(query, values);
     return true;
@@ -180,7 +180,7 @@ async function updateUser(userId, updates) {
 async function addReadingHistory(userId, reading) {
   try {
     await pool.query(
-      `INSERT INTO reading_history (user_id, reading_type, theme, cards, reading, advice)
+      `INSERT INTO reading_history ("userId", "readingType", "theme", "cards", "reading", "advice")
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [
         userId,
@@ -203,8 +203,8 @@ async function getReadingHistory(userId, limit = 10) {
   try {
     const result = await pool.query(
       `SELECT * FROM reading_history 
-       WHERE user_id = $1 
-       ORDER BY timestamp DESC 
+       WHERE "userId" = $1 
+       ORDER BY "timestamp" DESC 
        LIMIT $2`,
       [userId, limit]
     );
@@ -212,7 +212,7 @@ async function getReadingHistory(userId, limit = 10) {
     return result.rows.map(row => ({
       id: row.id,
       timestamp: row.timestamp,
-      type: row.reading_type,
+      type: row.readingType,
       theme: row.theme,
       cards: row.cards,
       reading: row.reading,
@@ -229,16 +229,16 @@ async function getTodayReadingHistory(userId) {
   try {
     const result = await pool.query(
       `SELECT * FROM reading_history 
-       WHERE user_id = $1 
-       AND DATE(timestamp) = CURRENT_DATE 
-       ORDER BY timestamp DESC`,
+       WHERE "userId" = $1 
+       AND DATE("timestamp") = CURRENT_DATE 
+       ORDER BY "timestamp" DESC`,
       [userId]
     );
 
     return result.rows.map(row => ({
       id: row.id,
       timestamp: row.timestamp,
-      type: row.reading_type,
+      type: row.readingType,
       theme: row.theme,
       cards: row.cards,
       reading: row.reading,
@@ -255,7 +255,7 @@ async function getReadingHistoryAfterPlanChange(userId) {
   try {
     // ユーザー情報を取得
     const userResult = await pool.query(
-      'SELECT plan_changed_at FROM users WHERE user_id = $1',
+      'SELECT "planChangedAt" FROM users WHERE "userId" = $1',
       [userId]
     );
 
@@ -263,22 +263,22 @@ async function getReadingHistoryAfterPlanChange(userId) {
       return [];
     }
 
-    const planChangedAt = userResult.rows[0].plan_changed_at;
+    const planChangedAt = userResult.rows[0].planChangedAt;
 
     // プラン変更後の履歴を取得
     const result = await pool.query(
       `SELECT * FROM reading_history 
-       WHERE user_id = $1 
-       AND timestamp >= $2 
-       AND DATE(timestamp) = CURRENT_DATE 
-       ORDER BY timestamp DESC`,
+       WHERE "userId" = $1 
+       AND "timestamp" >= $2 
+       AND DATE("timestamp") = CURRENT_DATE 
+       ORDER BY "timestamp" DESC`,
       [userId, planChangedAt]
     );
 
     return result.rows.map(row => ({
       id: row.id,
       timestamp: row.timestamp,
-      type: row.reading_type,
+      type: row.readingType,
       theme: row.theme,
       cards: row.cards,
       reading: row.reading,
