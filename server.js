@@ -963,10 +963,14 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       };
     }));
     
-    // メッセージを送信（画像 + テキスト）
+    // メッセージを送信（ローディングメッセージ + 画像 + テキスト）
     // 429エラーが出ても占い処理自体は成功させる
     try {
       await client.pushMessage(userId, [
+        {
+          type: 'text',
+          text: '今日カード達は何を伝えたいのか…🌟\nどんな運命が…🎴'
+        },
         ...cardImages,
         {
           type: 'text',
