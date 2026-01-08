@@ -38,16 +38,23 @@ const PLAN_LIMITS = {
 };
 
 // 使用可能かチェック
-function checkUsageLimit(userId) {
-  const user = db.getOrCreateUser(userId);
-  const canUse = db.canUseReading(userId);
+async function checkUsageLimit(userId) {
+  const user = await db.getOrCreateUser(userId);
+  const canUse = await db.canUseReading(userId);
   const plan = PLAN_LIMITS[user.plan];
+  
+  // プラン変更後の使用回数を取得
+  const historyAfterPlanChange = await db.getReadingHistoryAfterPlanChange(userId);
+  const usedAfterPlanChange = historyAfterPlanChange.length;
+  const singlePurchaseCount = user.singlePurchaseCount || 0;
+  const totalLimit = plan.dailyLimit + singlePurchaseCount;
+  const remainingToday = Math.max(0, totalLimit - usedAfterPlanChange);
   
   return {
     canUse,
     user,
     plan,
-    remainingToday: plan.dailyLimit - user.usageCount.today,
+    remainingToday,
     message: canUse ? null : generateLimitMessage(user, plan)
   };
 }
@@ -96,16 +103,16 @@ function generateLimitMessage(user, plan) {
 }
 
 // ルカが使えるかチェック
-function canUseLuka(userId) {
-  const user = db.getOrCreateUser(userId);
+async function canUseLuka(userId) {
+  const user = await db.getOrCreateUser(userId);
   const plan = PLAN_LIMITS[user.plan];
   
   return plan.hasLuka;
 }
 
 // 初回ユーザーかチェック
-function isFirstTimeUser(userId) {
-  const user = db.getOrCreateUser(userId);
+async function isFirstTimeUser(userId) {
+  const user = await db.getOrCreateUser(userId);
   // greetingSentがundefinedの場合はfalseとして扱う(既存ユーザー対応)
   const greetingSent = user.greetingSent === undefined ? false : user.greetingSent;
   // greetingSentフラグが立っていない、かつ無料プランで、無料占い未使用の場合のみ初回ユーザーとする
@@ -113,15 +120,15 @@ function isFirstTimeUser(userId) {
 }
 
 // 占い実行後の処理
-function afterReading(userId) {
-  const user = db.getOrCreateUser(userId);
+async function afterReading(userId) {
+  const user = await db.getOrCreateUser(userId);
   
-  // 使用回数をインクリメント
-  db.incrementUsageCount(userId);
+  // PostgreSQL版では使用回数はreading_historyテーブルから自動計算されるため、
+  // incrementUsageCountは不要。addReadingHistoryで履歴を追加するだけ。
   
   // 無料プランの場合、使用済みフラグを立てる
   if (user.plan === 'free') {
-    db.updateUser(userId, {
+    await db.updateUser(userId, {
       freeReadingUsed: true
     });
   }

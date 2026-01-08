@@ -318,5 +318,46 @@ module.exports = {
   getTodayReadingHistory,
   getReadingHistoryAfterPlanChange,
   getUsageCountAfterPlanChange,
+  canUseReading,
   closeDB
 };
+
+// 使用可能かチェック
+async function canUseReading(userId) {
+  try {
+    const user = await getOrCreateUser(userId);
+    
+    // 無料プラン：初回のみ
+    if (user.plan === 'free') {
+      return !user.freeReadingUsed;
+    }
+    
+    // 単品購入：常にOK（購入時にチェック）
+    if (user.plan === 'single') {
+      return true;
+    }
+    
+    // ライト：1日1回 + 単品購入回数
+    if (user.plan === 'light') {
+      const historyAfterPlanChange = await getReadingHistoryAfterPlanChange(userId);
+      const usedAfterPlanChange = historyAfterPlanChange.length;
+      const singlePurchaseCount = user.singlePurchaseCount || 0;
+      const totalLimit = 1 + singlePurchaseCount;
+      return usedAfterPlanChange < totalLimit;
+    }
+    
+    // スタンダード・プレミアム：1日2回 + 単品購入回数
+    if (user.plan === 'standard' || user.plan === 'premium') {
+      const historyAfterPlanChange = await getReadingHistoryAfterPlanChange(userId);
+      const usedAfterPlanChange = historyAfterPlanChange.length;
+      const singlePurchaseCount = user.singlePurchaseCount || 0;
+      const totalLimit = 2 + singlePurchaseCount;
+      return usedAfterPlanChange < totalLimit;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('❌ canUseReadingエラー:', error);
+    return false;
+  }
+}
