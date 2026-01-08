@@ -823,17 +823,23 @@ app.get('/api/card-detail', (req, res) => {
 });
 
 // API: ユーザーデータ取得
-app.get('/api/user-data', (req, res) => {
-  const userId = req.query.userId;
-  const user = db.getOrCreateUser(userId);
-  
-  // プラン変更後の使用回数を追加
-  const usageCountAfterPlanChange = db.getUsageCountAfterPlanChange(user);
-  
-  res.json({
-    ...user,
-    usageCountAfterPlanChange
-  });
+app.get('/api/user-data', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const user = await db.getOrCreateUser(userId);
+    
+    // プラン変更後の使用回数を取得
+    const historyAfterPlanChange = await db.getReadingHistoryAfterPlanChange(userId);
+    const usageCountAfterPlanChange = historyAfterPlanChange.length;
+    
+    res.json({
+      ...user,
+      usageCountAfterPlanChange
+    });
+  } catch (error) {
+    console.error('❌ /api/user-dataエラー:', error);
+    res.status(500).json({ error: 'Failed to fetch user data' });
+  }
 });
 
 // API: LIFF経由で占いを実行

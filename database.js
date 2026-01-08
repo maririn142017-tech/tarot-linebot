@@ -290,6 +290,20 @@ async function getReadingHistoryAfterPlanChange(userId) {
   }
 }
 
+// プラン変更後の使用回数を取得
+function getUsageCountAfterPlanChange(user) {
+  // planChangedAtがない場合は0を返す
+  if (!user.planChangedAt) {
+    return 0;
+  }
+  
+  // getReadingHistoryAfterPlanChangeを使用して履歴を取得
+  // この関数は非同期なので、server.jsで呼び出す必要がある
+  // ここでは同期的に計算できないため、0を返す
+  // 実際の計算はserver.jsで行う
+  return 0;
+}
+
 // 接続プールを閉じる
 async function closeDB() {
   await pool.end();
@@ -303,5 +317,6 @@ module.exports = {
   getReadingHistory,
   getTodayReadingHistory,
   getReadingHistoryAfterPlanChange,
+  getUsageCountAfterPlanChange,
   closeDB
 };
