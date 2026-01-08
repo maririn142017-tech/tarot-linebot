@@ -734,41 +734,71 @@ async function handleCardGuide(event, userId) {
 
 // マイページ
 async function handleMyPage(event, userId, displayName) {
-  const user = db.getOrCreateUser(userId, displayName);
-  const planInfo = usageLimiter.getPlanInfo(user.plan);
-  
-  // 今日の残り回数
-  db.resetDailyUsageIfNeeded(userId);
-  const remainingToday = planInfo.dailyLimit - user.usageCount.today;
-  
-  let myPageMessage = `📊 ${displayName}さんのマイページ\n\n`;
-  myPageMessage += `【現在のプラン】\n${planInfo.name}\n\n`;
-  
-  if (user.plan !== 'free') {
-    myPageMessage += `【今日の残り回数】\n${remainingToday}回\n\n`;
-  }
-  
-  if (user.plan === 'free') {
-    myPageMessage += `【無料占い】\n${user.freeReadingUsed ? '使用済み' : '未使用'}\n\n`;
-  }
-  
-  // 占い履歴
-  if (user.readingHistory && user.readingHistory.length > 0) {
-    myPageMessage += `【最近の占い】\n`;
-    user.readingHistory.slice(0, 3).forEach((reading, index) => {
-      const date = new Date(reading.timestamp).toLocaleDateString('ja-JP');
-      const type = reading.type === 'love' ? '恋愛占い' : '一般占い';
-      const theme = reading.theme ? `（${reading.theme}）` : '';
-      myPageMessage += `${index + 1}. ${date} - ${type}${theme}\n`;
+  try {
+    // PostgreSQLからユーザー情報を取得
+    const user = await db.getOrCreateUser(userId, displayName);
+    const planInfo = usageLimiter.getPlanInfo(user.plan);
+    
+    // 今日の利用回数を取得
+    const todayHistory = await db.getTodayReadingHistory(userId);
+    const todayUsageCount = todayHistory.length;
+    
+    // プラン変更後の使用回数
+    const historyAfterPlanChange = await db.getReadingHistoryAfterPlanChange(userId);
+    const usageCountAfterPlanChange = historyAfterPlanChange.length;
+    
+    // 占い履歴を取得
+    const readingHistory = await db.getReadingHistory(userId, 3);
+    
+    // 今日の残り回数を計算
+    let usedToday;
+    if (user.plan === 'single' || user.plan === 'free') {
+      usedToday = todayUsageCount;
+    } else {
+      usedToday = usageCountAfterPlanChange;
+    }
+    
+    const singlePurchaseCount = user.singlePurchaseCount || 0;
+    const totalLimit = planInfo.dailyLimit + singlePurchaseCount;
+    const remainingToday = Math.max(0, totalLimit - usedToday);
+    
+    let myPageMessage = `📊 ${displayName}さんのマイページ\n\n`;
+    myPageMessage += `【現在のプラン】\n${planInfo.name}\n\n`;
+    
+    if (user.plan === 'free') {
+      myPageMessage += `【今日の利用回数】\n${todayUsageCount}回\n\n`;
+      myPageMessage += `【無料占い】\n${user.freeReadingUsed ? '使用済み' : '未使用'}\n\n`;
+    } else if (user.plan === 'single') {
+      myPageMessage += `【今日の利用回数】\n${todayUsageCount}回\n\n`;
+    } else {
+      myPageMessage += `【今日の残り回数】\n${remainingToday}回\n\n`;
+      myPageMessage += `【今日の利用回数】\n${usedToday}回\n\n`;
+    }
+    
+    // 占い履歴
+    if (readingHistory && readingHistory.length > 0) {
+      myPageMessage += `【最近の占い】\n`;
+      readingHistory.forEach((reading, index) => {
+        const date = new Date(reading.timestamp).toLocaleDateString('ja-JP');
+        const type = reading.type === 'love' ? '恋愛占い' : '一般占い';
+        const theme = reading.theme ? `（${reading.theme}）` : '';
+        myPageMessage += `${index + 1}. ${date} - ${type}${theme}\n`;
+      });
+    }
+    
+    myPageMessage += `\n✨ いつもありがとうございます 💕`;
+    
+    return lineClient.replyMessage(event.replyToken, {
+      type: 'text',
+      text: myPageMessage
+    });
+  } catch (error) {
+    console.error('❗ handleMyPageエラー:', error);
+    return lineClient.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'マイページの読み込みに失敗しました。もう一度お試しください。'
     });
   }
-  
-  myPageMessage += `\n✨ いつもありがとうございます 💕`;
-  
-  return lineClient.replyMessage(event.replyToken, {
-    type: 'text',
-    text: myPageMessage
-  });
 }
 
 // 決済
