@@ -465,7 +465,7 @@ async function handleEvent(event, lineClient = client) {
   }
   
   // 初回ユーザーの挨拶
-  if (usageLimiter.isFirstTimeUser(userId) && !lukaConversation.isInConversation(userId)) {
+  if (usageLimiter.isFirstTimeUser(userId) && !(await lukaConversation.isInConversation(userId))) {
     // 挨拶を送信する前にフラグを立てる（次回からは表示しない）
     db.updateUser(userId, { greetingSent: true });
     
@@ -484,7 +484,7 @@ async function handleEvent(event, lineClient = client) {
   }
   
   // 2回目以降の挨拶（LIFFメッセージではない通常メッセージの場合のみ）
-  if (!lukaConversation.isInConversation(userId) && 
+  if (!(await lukaConversation.isInConversation(userId)) && 
       !userMessage.startsWith('一般占い：') && 
       !userMessage.startsWith('恋愛占い：') &&
       userMessage.length < 20) { // 短いメッセージのみ挨拶を返す
@@ -527,7 +527,15 @@ async function handleEvent(event, lineClient = client) {
   
   if (userMessage === 'ルカ占い') {
     console.log('>>> Luka Fortune button tapped! Calling handleLukaReading...');
-    return handleLukaReading(event, userId, profile.displayName, lineClient);
+    try {
+      return await handleLukaReading(event, userId, profile.displayName, lineClient);
+    } catch (error) {
+      console.error('>>> Error in handleLukaReading:', error);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'エラーが発生しました。もう一度お試しください。'
+      });
+    }
   }
   
   if (userMessage === 'カード解釈集') {
@@ -551,7 +559,7 @@ async function handleEvent(event, lineClient = client) {
   }
   
   // ルカとの会話中の処理
-  if (lukaConversation.isInConversation(userId)) {
+  if (await lukaConversation.isInConversation(userId)) {
     const result = await lukaConversation.handleConversationMessage(
       userId, 
       userMessage, 

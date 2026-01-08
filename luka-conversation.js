@@ -159,9 +159,9 @@ function extractKeyword(text) {
 }
 
 // 会話状態をチェック
-function isInConversation(userId) {
-  const user = db.getOrCreateUser(userId);
-  return user.conversationState.isInConversation;
+async function isInConversation(userId) {
+  const user = await db.getOrCreateUser(userId);
+  return user.conversationState && user.conversationState.isInConversation;
 }
 
 // 会話をリセット
