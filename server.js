@@ -12,6 +12,7 @@ const db = require('./database');
 const usageLimiter = require('./usage-limiter');
 const lukaConversation = require('./luka-conversation');
 const support = require('./support');
+const dailyFortune = require('./daily-fortune');
 
 const app = express();
 
@@ -686,45 +687,12 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
 
 // ルカ占い（AI会話あり）
 async function handleLukaReading(event, userId, displayName) {
-  // ルカが使えるかチェック
-  if (!usageLimiter.canUseLuka(userId)) {
-    return lineClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: `ルカ占いは有料会員限定です💕
-
-【ルカ占いの特徴】
-✨ ルカとの会話ができる
-✨ AIによる詳しい鑑定
-✨ 1000文字の個別メッセージ
-
-料金プラン：
-💫 単品：380円/回
-👑 ライト：3,000円/月（1日1回）
-👑 スタンダード：5,000円/月（1日2回）
-👑 プレミアム：9,800円/3ヶ月（1日2回）
-
-※有料会員でも単品購入可能です
-
-下のメニューから「決済」をタップしてね🎶`
-    });
-  }
-  
-  // 利用制限チェック
-  const limitCheck = usageLimiter.checkUsageLimit(userId);
-  
-  if (!limitCheck.canUse) {
-    return lineClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: limitCheck.message
-    });
-  }
-  
-  // 会話を開始
-  const greeting = lukaConversation.startConversation(userId, displayName);
+  // 今日の運勢を生成（無料、誰でも使える）
+  const fortuneMessage = dailyFortune.generateDailyFortune(userId, displayName);
   
   return lineClient.replyMessage(event.replyToken, {
     type: 'text',
-    text: greeting
+    text: fortuneMessage
   });
 }
 
