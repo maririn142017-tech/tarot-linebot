@@ -229,14 +229,14 @@ async function getReadingHistory(userId, limit = 10) {
 // 今日の占い履歴を取得
 async function getTodayReadingHistory(userId) {
   try {
-    // 現在の日付を確認
-    const dateCheck = await pool.query('SELECT CURRENT_DATE, CURRENT_TIMESTAMP, NOW()');
-    console.log('📅 PostgreSQL CURRENT_DATE:', dateCheck.rows[0]);
+    // 現在の日付をJSTで確認
+    const dateCheck = await pool.query("SELECT CURRENT_DATE AT TIME ZONE 'Asia/Tokyo' as jst_date, NOW() AT TIME ZONE 'Asia/Tokyo' as jst_now");
+    console.log('📅 PostgreSQL JST DATE:', dateCheck.rows[0]);
     
     const result = await pool.query(
       `SELECT * FROM reading_history 
        WHERE user_id = $1 
-       AND DATE(timestamp) = CURRENT_DATE 
+       AND DATE(timestamp AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
        ORDER BY timestamp DESC`,
       [userId]
     );
