@@ -746,6 +746,10 @@ async function handleMyPage(event, userId, displayName) {
     // プラン変更後の使用回数
     const historyAfterPlanChange = await db.getReadingHistoryAfterPlanChange(userId);
     const usageCountAfterPlanChange = historyAfterPlanChange.length;
+    console.log(`📊 historyAfterPlanChange count: ${usageCountAfterPlanChange}`);
+    if (historyAfterPlanChange.length > 0) {
+      console.log('📅 First record:', historyAfterPlanChange[0].timestamp);
+    }
     
     // 占い履歴を取得
     const readingHistory = await db.getReadingHistory(userId, 3);
@@ -761,6 +765,8 @@ async function handleMyPage(event, userId, displayName) {
     const singlePurchaseCount = user.singlePurchaseCount || 0;
     const totalLimit = planInfo.dailyLimit + singlePurchaseCount;
     const remainingToday = Math.max(0, totalLimit - usedToday);
+    
+    console.log(`📊 Calculation: dailyLimit=${planInfo.dailyLimit}, singlePurchaseCount=${singlePurchaseCount}, totalLimit=${totalLimit}, usedToday=${usedToday}, remainingToday=${remainingToday}`);
     
     let myPageMessage = `📊 ${displayName}さんのマイページ\n\n`;
     myPageMessage += `【現在のプラン】\n${planInfo.name}\n\n`;
