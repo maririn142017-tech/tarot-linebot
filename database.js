@@ -276,12 +276,12 @@ async function getReadingHistoryAfterPlanChange(userId) {
 
     const planChangedAt = userResult.rows[0].plan_changed_at;
 
-    // プラン変更後の履歴を取得
+    // プラン変更後の履歴を取得（JSTで日付判定）
     const result = await pool.query(
       `SELECT * FROM reading_history 
        WHERE user_id = $1 
        AND timestamp >= $2 
-       AND DATE(timestamp) = CURRENT_DATE 
+       AND DATE(timestamp AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
        ORDER BY timestamp DESC`,
       [userId, planChangedAt]
     );
