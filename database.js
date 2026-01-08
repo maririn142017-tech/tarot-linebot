@@ -9,12 +9,14 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-// PostgreSQL接続プール
+// PostgreSQL接続プール（タイムゾーンを日本時間に設定）
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  // タイムゾーンを日本時間に設定
+  options: '-c timezone=Asia/Tokyo'
 });
 
 // データベースの初期化(テーブル作成)

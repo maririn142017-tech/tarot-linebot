@@ -7,10 +7,12 @@ function seededRandom(seed) {
   return x - Math.floor(x);
 }
 
-// 日付からシード値を生成
+// 日付からシード値を生成（日本時間を使用）
 function getDateSeed(userId) {
   const today = new Date();
-  const dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+  // 日本時間（JST）に変換
+  const jstDate = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+  const dateString = `${jstDate.getFullYear()}-${jstDate.getMonth() + 1}-${jstDate.getDate()}`;
   
   // ユーザーIDと日付を組み合わせてシード値を生成
   let seed = 0;
