@@ -860,10 +860,10 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       profile = { displayName: 'ゲスト' };
     }
     
-    const user = db.getOrCreateUser(userId, profile.displayName);
+    const user = await db.getOrCreateUser(userId, profile.displayName);
     
     // 利用制限チェック
-    const limitCheck = usageLimiter.checkUsageLimit(userId);
+    const limitCheck = await usageLimiter.checkUsageLimit(userId);
     
     if (!limitCheck.canUse) {
       try {
@@ -949,11 +949,11 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
     }
     
     // 使用回数を記録（送信成功・失敗に関わらず必ず実行）
-    usageLimiter.afterReading(userId);
+    await usageLimiter.afterReading(userId);
     console.log('Usage count recorded');
     
     // 占い履歴に追加（送信成功・失敗に関わらず必ず実行）
-    db.addReadingHistory(userId, {
+    await db.addReadingHistory(userId, {
       type: type,
       theme: theme,
       cards: cards,
