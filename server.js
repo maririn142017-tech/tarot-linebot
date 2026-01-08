@@ -520,7 +520,7 @@ async function handleEvent(event, lineClient = client) {
   }
   
   if (userMessage === 'ルカ占い') {
-    return handleLukaReading(event, userId, profile.displayName);
+    return handleLukaReading(event, userId, profile.displayName, lineClient);
   }
   
   if (userMessage === 'カード解釈集') {
@@ -686,7 +686,7 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
 }
 
 // ルカ占い（AI会話あり）
-async function handleLukaReading(event, userId, displayName) {
+async function handleLukaReading(event, userId, displayName, lineClient = client) {
   // 今日の運勢を生成（無料、誰でも使える）
   const fortuneMessage = dailyFortune.generateDailyFortune(userId, displayName);
   
