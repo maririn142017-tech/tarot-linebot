@@ -430,6 +430,11 @@ async function handleEvent(event, lineClient = client) {
   const userId = event.source.userId;
   const userMessage = event.message.text.trim();
   
+  console.log('=== Message Received ===');
+  console.log('User ID:', userId);
+  console.log('Message:', userMessage);
+  console.log('=======================');
+  
   // ユーザー情報を取得または作成
   let profile;
   try {
@@ -520,6 +525,7 @@ async function handleEvent(event, lineClient = client) {
   }
   
   if (userMessage === 'ルカ占い') {
+    console.log('>>> Luka Fortune button tapped! Calling handleLukaReading...');
     return handleLukaReading(event, userId, profile.displayName, lineClient);
   }
   
@@ -687,8 +693,13 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
 
 // ルカ占い（AI会話あり）
 async function handleLukaReading(event, userId, displayName, lineClient = client) {
+  console.log('>>> handleLukaReading called!');
+  console.log('>>> userId:', userId);
+  console.log('>>> displayName:', displayName);
+  
   // 今日の運勢を生成（無料、誰でも使える）
   const fortuneMessage = dailyFortune.generateDailyFortune(userId, displayName);
+  console.log('>>> fortuneMessage generated:', fortuneMessage.substring(0, 50) + '...');
   
   return lineClient.replyMessage(event.replyToken, {
     type: 'text',
