@@ -464,8 +464,8 @@ async function handleEvent(event, lineClient = client) {
     });
   }
   
-  // 初回ユーザーの挨拶
-  if (usageLimiter.isFirstTimeUser(userId) && !(await lukaConversation.isInConversation(userId))) {
+  // 初回ユーザーの挨拶（「ルカ占い」メッセージは除外）
+  if (usageLimiter.isFirstTimeUser(userId) && !(await lukaConversation.isInConversation(userId)) && userMessage !== 'ルカ占い') {
     // 挨拶を送信する前にフラグを立てる（次回からは表示しない）
     db.updateUser(userId, { greetingSent: true });
     
