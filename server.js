@@ -175,7 +175,7 @@ console.log('=====================');
         console.log(`Payment completed: userId=${userId}, planType=${planType}, eventId=${eventId}`);
         
         // 重複処理チェック
-        const user = db.getOrCreateUser(userId);
+        const user = await db.getOrCreateUser(userId);
         if (user.processedEvents && user.processedEvents.includes(eventId)) {
           console.log(`⚠️ Event already processed: eventId=${eventId}, skipping`);
           return res.json({ received: true, skipped: true });
@@ -184,7 +184,7 @@ console.log('=====================');
         // ユーザーのプランを更新
         if (planType === 'single') {
           // 単品購入の場合
-          const user = db.getOrCreateUser(userId);
+          const user = await db.getOrCreateUser(userId);
           
           // サブスクリプション会員かどうかをチェック
           const isSubscriptionUser = ['light', 'standard', 'premium'].includes(user.plan);
@@ -192,7 +192,7 @@ console.log('=====================');
           if (isSubscriptionUser) {
             // サブスクリプション会員の場合、プランを上書きせず、単品購入回数を増やす
             const currentCount = user.singlePurchaseCount || 0;
-            db.updateUser(userId, {
+            await db.updateUser(userId, {
               singlePurchaseCount: currentCount + 1
             });
             console.log(`Subscription user purchased single reading: userId=${userId}, plan unchanged, singlePurchaseCount=${currentCount + 1}`);
@@ -208,12 +208,12 @@ console.log('=====================');
               updates.planChangedAt = new Date().toISOString();
             }
             
-            db.updateUser(userId, updates);
+            await db.updateUser(userId, updates);
             console.log(`User upgraded to single purchase: userId=${userId}`);
           }
         } else {
           // 定期購読の場合
-          const user = db.getOrCreateUser(userId);
+          const user = await db.getOrCreateUser(userId);
           const now = new Date();
           let endDate = new Date(now);
           
@@ -239,20 +239,19 @@ console.log('=====================');
             singlePurchaseCount: 0
           };
           
-          db.updateUser(userId, updates);
+          await db.updateUser(userId, updates);
         }
         
-        const updatedUser = db.getOrCreateUser(userId);
+        const updatedUser = await db.getOrCreateUser(userId);
         console.log(`User plan updated: userId=${userId}, actualPlan=${updatedUser.plan}, purchasedPlanType=${planType}, singlePurchaseCount=${updatedUser.singlePurchaseCount || 0}`);
         
         // 処理済みイベントIDを記録（重複処理を防ぐ）
         const processedEvents = updatedUser.processedEvents || [];
         processedEvents.push(eventId);
-        // 最大100個まで保持（古いものから削除）
         if (processedEvents.length > 100) {
           processedEvents.shift();
         }
-        db.updateUser(userId, { processedEvents });
+        await db.updateUser(userId, { processedEvents });
         console.log(`✅ Event processed and recorded: eventId=${eventId}`);
         
         // 決済完了メッセージを送信（エラーが発生してもwebhook処理は成功とする）
