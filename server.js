@@ -956,7 +956,8 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       type: type,
       theme: theme,
       cards: cards,
-      result: resultMessage
+      reading: resultMessage,
+      advice: null
     });
     console.log('Reading history saved');
     
