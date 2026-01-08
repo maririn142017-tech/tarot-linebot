@@ -18,7 +18,8 @@ const app = express();
 
 // JSONリクエストボディのパース用ミドルウェア
 app.use((req, res, next) => {
-  if (req.path === '/webhook/stripe') {
+  // LINE WebhookとStripe Webhookはraw bodyが必要なので除外
+  if (req.path === '/webhook' || req.path === '/webhook-test' || req.path === '/webhook/stripe') {
     next();
   } else {
     express.json()(req, res, next);
