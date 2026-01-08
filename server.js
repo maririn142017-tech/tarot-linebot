@@ -788,13 +788,13 @@ async function handleMyPage(event, userId, displayName) {
     
     myPageMessage += `\n✨ いつもありがとうございます 💕`;
     
-    return lineClient.replyMessage(event.replyToken, {
+    return client.replyMessage(event.replyToken, {
       type: 'text',
       text: myPageMessage
     });
   } catch (error) {
     console.error('❗ handleMyPageエラー:', error);
-    return lineClient.replyMessage(event.replyToken, {
+    return client.replyMessage(event.replyToken, {
       type: 'text',
       text: 'マイページの読み込みに失敗しました。もう一度お試しください。'
     });
