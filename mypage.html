@@ -228,7 +228,9 @@
     // ユーザーデータを読み込み
     async function loadUserData() {
       try {
-        const response = await fetch(`/api/user-data?userId=${userId}`);
+        // キャッシュを回避するためにタイムスタンプを追加
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/user-data?userId=${userId}&_t=${timestamp}`);
         const data = await response.json();
         
         displayUserData(data);
