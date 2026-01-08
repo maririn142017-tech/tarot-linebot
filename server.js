@@ -847,11 +847,18 @@ app.get('/api/user-data', async (req, res) => {
     const historyAfterPlanChange = await db.getReadingHistoryAfterPlanChange(userId);
     const usageCountAfterPlanChange = historyAfterPlanChange.length;
     
+    // 今日の占い履歴を取得（今日の利用回数を計算）
+    const todayHistory = await db.getTodayReadingHistory(userId);
+    const todayUsageCount = todayHistory.length;
+    
     // 占い履歴を取得（最新10件）
     const readingHistory = await db.getReadingHistory(userId, 10);
     
     res.json({
       ...user,
+      usageCount: {
+        today: todayUsageCount
+      },
       usageCountAfterPlanChange,
       readingHistory
     });
