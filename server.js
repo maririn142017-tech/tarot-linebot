@@ -831,9 +831,13 @@ app.get('/api/user-data', async (req, res) => {
     const historyAfterPlanChange = await db.getReadingHistoryAfterPlanChange(userId);
     const usageCountAfterPlanChange = historyAfterPlanChange.length;
     
+    // 占い履歴を取得（最新10件）
+    const readingHistory = await db.getReadingHistory(userId, 10);
+    
     res.json({
       ...user,
-      usageCountAfterPlanChange
+      usageCountAfterPlanChange,
+      readingHistory
     });
   } catch (error) {
     console.error('❌ /api/user-dataエラー:', error);
