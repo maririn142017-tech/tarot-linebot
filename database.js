@@ -1,267 +1,307 @@
-// データベース管理モジュール
-// シンプルなJSONファイルベースのデータベース（後でMongoDBに移行可能）
+// PostgreSQL データベース
+const { Pool } = require('pg');
 
-const fs = require('fs');
-const path = require('path');
+// 環境変数からデータベースURLを取得
+const DATABASE_URL = process.env.DATABASE_URL;
 
-const DB_FILE = path.join(__dirname, 'users.json');
-
-// データベースの初期化
-function initDB() {
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
-  }
+if (!DATABASE_URL) {
+  console.error('DATABASE_URL環境変数が設定されていません');
+  process.exit(1);
 }
 
-// データベースの読み込み
-function readDB() {
-  try {
-    const data = fs.readFileSync(DB_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('DB読み込みエラー:', error);
-    return { users: {} };
+// PostgreSQL接続プール
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
   }
-}
+});
 
-// データベースの書き込み
-function writeDB(data) {
+// データベースの初期化（テーブル作成）
+async function initDB() {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-    return true;
+    // usersテーブルの作成
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        display_name TEXT,
+        plan TEXT DEFAULT 'free',
+        plan_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        free_reading_used BOOLEAN DEFAULT FALSE,
+        single_purchase_count INTEGER DEFAULT 0,
+        greeting_sent BOOLEAN DEFAULT FALSE,
+        subscription JSONB,
+        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // reading_historyテーブルの作成
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reading_history (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT REFERENCES users(user_id) ON DELETE CASCADE,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reading_type TEXT,
+        theme TEXT,
+        cards JSONB,
+        reading TEXT,
+        advice TEXT
+      )
+    `);
+
+    // インデックスの作成
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reading_history_user_id ON reading_history(user_id);
+      CREATE INDEX IF NOT EXISTS idx_reading_history_timestamp ON reading_history(timestamp);
+    `);
+
+    console.log('✅ データベーステーブルが初期化されました');
   } catch (error) {
-    console.error('DB書き込みエラー:', error);
-    return false;
+    console.error('❌ データベース初期化エラー:', error);
+    throw error;
   }
 }
 
 // ユーザーの取得または作成
-function getOrCreateUser(userId, displayName = null) {
-  initDB();
-  const db = readDB();
-  
-  if (!db.users[userId]) {
-    // 新規ユーザー
-    db.users[userId] = {
-      userId: userId,
-      displayName: displayName,
-      plan: 'free', // free, single, light, standard, premium
-      planChangedAt: new Date().toISOString(), // プラン変更時刻
-      createdAt: new Date().toISOString(),
-      lastUsedAt: null,
-      greetingSent: false, // 挨拶送信済みフラグ
-      freeReadingUsed: false, // 無料占い使用済みフラグ
-      singlePurchaseCount: 0, // 単品購入回数（今日）
-      processedEvents: [], // 処理済みのStripe webhookイベントID（重複処理を防ぐ）
-      usageCount: {
-        today: 0,
-        lastResetDate: new Date().toISOString().split('T')[0]
-      },
-      conversationState: {
-        isInConversation: false,
-        conversationCount: 0,
-        conversationHistory: [],
-        userQuestion: ''
-      },
-      subscription: {
-        startDate: null,
-        endDate: null,
-        autoRenew: false,
-        notificationSent: false
-      },
-      readingHistory: []
-    };
-    writeDB(db);
+async function getOrCreateUser(userId, displayName = null) {
+  try {
+    // ユーザーが存在するか確認
+    const result = await pool.query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length > 0) {
+      // 既存ユーザー
+      const user = result.rows[0];
+      
+      // last_activeを更新
+      await pool.query(
+        'UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE user_id = $1',
+        [userId]
+      );
+
+      // JSONBフィールドをパース
+      return {
+        userId: user.user_id,
+        displayName: user.display_name,
+        plan: user.plan,
+        planChangedAt: user.plan_changed_at,
+        createdAt: user.created_at,
+        freeReadingUsed: user.free_reading_used,
+        singlePurchaseCount: user.single_purchase_count,
+        greetingSent: user.greeting_sent,
+        subscription: user.subscription,
+        lastActive: user.last_active
+      };
+    } else {
+      // 新規ユーザー
+      const insertResult = await pool.query(
+        `INSERT INTO users (user_id, display_name, plan, plan_changed_at, free_reading_used, single_purchase_count, greeting_sent)
+         VALUES ($1, $2, 'free', CURRENT_TIMESTAMP, FALSE, 0, FALSE)
+         RETURNING *`,
+        [userId, displayName]
+      );
+
+      const newUser = insertResult.rows[0];
+      return {
+        userId: newUser.user_id,
+        displayName: newUser.display_name,
+        plan: newUser.plan,
+        planChangedAt: newUser.plan_changed_at,
+        createdAt: newUser.created_at,
+        freeReadingUsed: newUser.free_reading_used,
+        singlePurchaseCount: newUser.single_purchase_count,
+        greetingSent: newUser.greeting_sent,
+        subscription: newUser.subscription,
+        lastActive: newUser.last_active
+      };
+    }
+  } catch (error) {
+    console.error('❌ getOrCreateUserエラー:', error);
+    throw error;
   }
-  
-  return db.users[userId];
 }
 
 // ユーザー情報の更新
-function updateUser(userId, updates) {
-  initDB();
-  const db = readDB();
-  
-  if (db.users[userId]) {
-    db.users[userId] = {
-      ...db.users[userId],
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
-    writeDB(db);
-    return db.users[userId];
-  }
-  
-  return null;
-}
+async function updateUser(userId, updates) {
+  try {
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
 
-// 今日の使用回数をリセット（日付が変わった場合）
-function resetDailyUsageIfNeeded(userId) {
-  const user = getOrCreateUser(userId);
-  const today = new Date().toISOString().split('T')[0];
-  
-  if (user.usageCount.lastResetDate !== today) {
-    updateUser(userId, {
-      usageCount: {
-        today: 0,
-        lastResetDate: today
-      },
-      singlePurchaseCount: 0  // 単品購入回数もリセット
-    });
-  }
-}
-
-// 使用回数をインクリメント
-function incrementUsageCount(userId) {
-  resetDailyUsageIfNeeded(userId);
-  const user = getOrCreateUser(userId);
-  
-  updateUser(userId, {
-    usageCount: {
-      today: user.usageCount.today + 1,
-      lastResetDate: user.usageCount.lastResetDate
-    },
-    lastUsedAt: new Date().toISOString()
-  });
-}
-
-// プラン変更後の使用回数を取得
-function getUsageCountAfterPlanChange(user) {
-  // planChangedAtがない場合は今日の使用回数を返す
-  if (!user.planChangedAt) {
-    console.log('[DEBUG] planChangedAt not found, returning today count:', user.usageCount.today);
-    return user.usageCount.today;
-  }
-  
-  const planChangedAt = new Date(user.planChangedAt);
-  const readingHistory = user.readingHistory || [];
-  
-  console.log('[DEBUG] planChangedAt:', user.planChangedAt);
-  console.log('[DEBUG] readingHistory count:', readingHistory.length);
-  
-  // プラン変更後の今日の占い回数をカウント
-  const today = new Date().toISOString().split('T')[0];
-  const usedAfterPlanChange = readingHistory.filter(reading => {
-    const readingDate = new Date(reading.timestamp);
-    const readingDateStr = readingDate.toISOString().split('T')[0];
-    const isToday = readingDateStr === today;
-    const isAfterPlanChange = readingDate >= planChangedAt;
-    
-    console.log('[DEBUG] Reading:', {
-      timestamp: reading.timestamp,
-      isToday,
-      isAfterPlanChange,
-      included: isToday && isAfterPlanChange
-    });
-    
-    return isToday && isAfterPlanChange;
-  }).length;
-  
-  console.log('[DEBUG] usedAfterPlanChange:', usedAfterPlanChange);
-  
-  return usedAfterPlanChange;
-}
-
-// 使用可能回数をチェック
-function canUseReading(userId) {
-  resetDailyUsageIfNeeded(userId);
-  const user = getOrCreateUser(userId);
-  
-  // 無料プラン：初回のみ
-  if (user.plan === 'free') {
-    return !user.freeReadingUsed;
-  }
-  
-  // 単品購入：常にOK（購入時にチェック）
-  if (user.plan === 'single') {
-    return true;
-  }
-  
-  // ライト：1日1回 + 単品購入回数
-  if (user.plan === 'light') {
-    const usedAfterPlanChange = getUsageCountAfterPlanChange(user);
-    const singlePurchaseCount = user.singlePurchaseCount || 0;
-    const totalLimit = 1 + singlePurchaseCount;
-    return usedAfterPlanChange < totalLimit;
-  }
-  
-  // スタンダード・プレミアム：1日2回 + 単品購入回数
-  if (user.plan === 'standard' || user.plan === 'premium') {
-    const usedAfterPlanChange = getUsageCountAfterPlanChange(user);
-    const singlePurchaseCount = user.singlePurchaseCount || 0;
-    const totalLimit = 2 + singlePurchaseCount;
-    return usedAfterPlanChange < totalLimit;
-  }
-  
-  return false;
-}
-
-// 会話状態の更新
-function updateConversationState(userId, updates) {
-  const user = getOrCreateUser(userId);
-  
-  updateUser(userId, {
-    conversationState: {
-      ...user.conversationState,
-      ...updates
+    // 更新フィールドを構築
+    if (updates.displayName !== undefined) {
+      fields.push(`display_name = $${paramIndex++}`);
+      values.push(updates.displayName);
     }
-  });
-}
+    if (updates.plan !== undefined) {
+      fields.push(`plan = $${paramIndex++}`);
+      values.push(updates.plan);
+    }
+    if (updates.planChangedAt !== undefined) {
+      fields.push(`plan_changed_at = $${paramIndex++}`);
+      values.push(updates.planChangedAt);
+    }
+    if (updates.freeReadingUsed !== undefined) {
+      fields.push(`free_reading_used = $${paramIndex++}`);
+      values.push(updates.freeReadingUsed);
+    }
+    if (updates.singlePurchaseCount !== undefined) {
+      fields.push(`single_purchase_count = $${paramIndex++}`);
+      values.push(updates.singlePurchaseCount);
+    }
+    if (updates.greetingSent !== undefined) {
+      fields.push(`greeting_sent = $${paramIndex++}`);
+      values.push(updates.greetingSent);
+    }
+    if (updates.subscription !== undefined) {
+      fields.push(`subscription = $${paramIndex++}`);
+      values.push(JSON.stringify(updates.subscription));
+    }
 
-// 会話のリセット
-function resetConversation(userId) {
-  updateConversationState(userId, {
-    isInConversation: false,
-    conversationCount: 0,
-    conversationHistory: [],
-    userQuestion: ''
-  });
+    if (fields.length === 0) {
+      return true; // 更新するフィールドがない
+    }
+
+    values.push(userId);
+    const query = `UPDATE users SET ${fields.join(', ')} WHERE user_id = $${paramIndex}`;
+    
+    await pool.query(query, values);
+    return true;
+  } catch (error) {
+    console.error('❌ updateUserエラー:', error);
+    throw error;
+  }
 }
 
 // 占い履歴の追加
-function addReadingHistory(userId, reading) {
-  const user = getOrCreateUser(userId);
-  
-  const history = user.readingHistory || [];
-  history.unshift({
-    ...reading,
-    timestamp: new Date().toISOString()
-  });
-  
-  // 最新50件のみ保持
-  if (history.length > 50) {
-    history.pop();
+async function addReadingHistory(userId, reading) {
+  try {
+    await pool.query(
+      `INSERT INTO reading_history (user_id, reading_type, theme, cards, reading, advice)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        userId,
+        reading.type,
+        reading.theme,
+        JSON.stringify(reading.cards),
+        reading.reading,
+        reading.advice
+      ]
+    );
+    return true;
+  } catch (error) {
+    console.error('❌ addReadingHistoryエラー:', error);
+    throw error;
   }
-  
-  updateUser(userId, {
-    readingHistory: history
-  });
 }
 
-// サブスクリプション情報の更新
-function updateSubscription(userId, subscriptionData) {
-  updateUser(userId, {
-    subscription: subscriptionData
-  });
+// 占い履歴の取得
+async function getReadingHistory(userId, limit = 10) {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM reading_history 
+       WHERE user_id = $1 
+       ORDER BY timestamp DESC 
+       LIMIT $2`,
+      [userId, limit]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      type: row.reading_type,
+      theme: row.theme,
+      cards: row.cards,
+      reading: row.reading,
+      advice: row.advice
+    }));
+  } catch (error) {
+    console.error('❌ getReadingHistoryエラー:', error);
+    throw error;
+  }
 }
 
-// 全ユーザーの取得（通知用）
-function getAllUsers() {
-  initDB();
-  const db = readDB();
-  return Object.values(db.users);
+// 今日の占い履歴を取得
+async function getTodayReadingHistory(userId) {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM reading_history 
+       WHERE user_id = $1 
+       AND DATE(timestamp) = CURRENT_DATE 
+       ORDER BY timestamp DESC`,
+      [userId]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      type: row.reading_type,
+      theme: row.theme,
+      cards: row.cards,
+      reading: row.reading,
+      advice: row.advice
+    }));
+  } catch (error) {
+    console.error('❌ getTodayReadingHistoryエラー:', error);
+    throw error;
+  }
+}
+
+// プラン変更後の占い履歴を取得
+async function getReadingHistoryAfterPlanChange(userId) {
+  try {
+    // ユーザー情報を取得
+    const userResult = await pool.query(
+      'SELECT plan_changed_at FROM users WHERE user_id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return [];
+    }
+
+    const planChangedAt = userResult.rows[0].plan_changed_at;
+
+    // プラン変更後の履歴を取得
+    const result = await pool.query(
+      `SELECT * FROM reading_history 
+       WHERE user_id = $1 
+       AND timestamp >= $2 
+       AND DATE(timestamp) = CURRENT_DATE 
+       ORDER BY timestamp DESC`,
+      [userId, planChangedAt]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      type: row.reading_type,
+      theme: row.theme,
+      cards: row.cards,
+      reading: row.reading,
+      advice: row.advice
+    }));
+  } catch (error) {
+    console.error('❌ getReadingHistoryAfterPlanChangeエラー:', error);
+    throw error;
+  }
+}
+
+// 接続プールを閉じる
+async function closeDB() {
+  await pool.end();
 }
 
 module.exports = {
+  initDB,
   getOrCreateUser,
   updateUser,
-  resetDailyUsageIfNeeded,
-  incrementUsageCount,
-  canUseReading,
-  getUsageCountAfterPlanChange,
-  updateConversationState,
-  resetConversation,
   addReadingHistory,
-  updateSubscription,
-  getAllUsers
+  getReadingHistory,
+  getTodayReadingHistory,
+  getReadingHistoryAfterPlanChange,
+  closeDB
 };
