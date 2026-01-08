@@ -445,7 +445,7 @@ async function handleEvent(event, lineClient = client) {
     profile = { displayName: 'ゲスト' };
   }
   
-  const user = db.getOrCreateUser(userId, profile.displayName);
+  const user = await db.getOrCreateUser(userId, profile.displayName);
   
   // デバッグログ
   console.log(`User ${userId} info:`, {
@@ -464,8 +464,8 @@ async function handleEvent(event, lineClient = client) {
     });
   }
   
-  // 初回ユーザーの挨拶（「ルカ占い」メッセージは除外）
-  if (usageLimiter.isFirstTimeUser(userId) && !(await lukaConversation.isInConversation(userId)) && userMessage !== 'ルカ占い') {
+  // 初回ユーザーの挨拶（「ルカ占い」「マイページ」メッセージは除外）
+  if (usageLimiter.isFirstTimeUser(userId) && !(await lukaConversation.isInConversation(userId)) && userMessage !== 'ルカ占い' && userMessage !== 'マイページ') {
     // 挨拶を送信する前にフラグを立てる（次回からは表示しない）
     db.updateUser(userId, { greetingSent: true });
     
@@ -488,7 +488,7 @@ async function handleEvent(event, lineClient = client) {
       !userMessage.startsWith('一般占い：') && 
       !userMessage.startsWith('恋愛占い：') &&
       userMessage.length < 20) { // 短いメッセージのみ挨拶を返す
-    const user = db.getOrCreateUser(userId);
+    const user = await db.getOrCreateUser(userId);
     const greetingSent = user.greetingSent === undefined ? false : user.greetingSent;
     
     // 挨拶済みで、簡単な挨拶メッセージの場合
