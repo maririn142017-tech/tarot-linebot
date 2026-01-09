@@ -13,6 +13,7 @@ const usageLimiter = require('./usage-limiter');
 const lukaConversation = require('./luka-conversation');
 const support = require('./support');
 const dailyFortune = require('./daily-fortune');
+const { consumeSinglePurchaseIfNeeded } = require('./consume-single-purchase');
 
 const app = express();
 
@@ -640,12 +641,15 @@ async function handleGeneralReadingWithTheme(event, userId, displayName, theme) 
   usageLimiter.afterReading(userId);
   
   // 占い履歴に追加
-  db.addReadingHistory(userId, {
+  await db.addReadingHistory(userId, {
     type: 'general',
     theme: theme,
     cards: cards,
     result: resultMessage
   });
+  
+  // 単品購入の消費処理
+  await consumeSinglePurchaseIfNeeded(userId);
   
   return lineClient.replyMessage(event.replyToken, {
     type: 'text',
@@ -687,12 +691,15 @@ async function handleLoveReadingWithTheme(event, userId, displayName, theme) {
   usageLimiter.afterReading(userId);
   
   // 占い履歴に追加
-  db.addReadingHistory(userId, {
+  await db.addReadingHistory(userId, {
     type: 'love',
     theme: theme,
     cards: cards,
     result: resultMessage
   });
+  
+  // 単品購入の消費処理
+  await consumeSinglePurchaseIfNeeded(userId);
   
   return lineClient.replyMessage(event.replyToken, {
     type: 'text',
@@ -1027,6 +1034,10 @@ app.post('/api/send-reading', express.json(), async (req, res) => {
       advice: null
     });
     console.log('Reading history saved');
+    
+    // 単品購入の消費処理
+    await consumeSinglePurchaseIfNeeded(userId);
+    console.log('Single purchase consumed if needed');
     
     // フォローアップメッセージを送信（無料・単品購入ユーザーへの誘導）
     const userInfo = await db.getOrCreateUser(userId);
